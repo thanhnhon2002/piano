@@ -791,7 +791,11 @@ function newNote() {
       const li = r.d % 7, k = keyAcc[li];
       if (Math.random() < 0.65) r.acc = k;
       else {
-        const opts = [-1, 0, 1].filter(a => a !== k && !(a === 1 && (li === 2 || li === 6)) && !(a === -1 && (li === 0 || li === 3)));
+        // Hợp lý theo cách ghi nhạc: giọng có dấu giáng chỉ dùng ♭/♮, giọng có dấu thăng chỉ dùng ♯/♮;
+        // không tạo Mi♯, Si♯, Fa♭, Đô♭ (trừ khi chính hóa biểu có)
+        const opts = [-1, 0, 1].filter(a => a !== k
+          && !(a === 1 && state.key < 0) && !(a === -1 && state.key > 0)
+          && !(a === 1 && (li === 2 || li === 6)) && !(a === -1 && (li === 0 || li === 3)));
         r.acc = opts.length ? opts[rnd(opts.length)] : k;
       }
     }
