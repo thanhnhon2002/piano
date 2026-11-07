@@ -173,11 +173,7 @@
   <div class="settings" id="noteOpts">
     <span class="chk ledsel" id="optLedger">Dòng kẻ phụ: <select id="ledger" title="Số dòng kẻ phụ phía trên và phía dưới khuông"></select></span>
     <label class="chk" id="optOtt" title="Nốt cần từ 4 dòng kẻ phụ trở lên được viết gọn bằng ký hiệu quãng tám"><input type="checkbox" id="ottava" checked> Dùng 8va/8vb</label>
-    <label class="chk ledsel" id="optAcc" title="Dấu hóa: thăng ♯, giáng ♭, bình ♮">Dấu hóa: <select id="acc">
-      <option value="0">Không</option>
-      <option value="1">Có ♯ ♭ ngẫu nhiên</option>
-      <option value="2">Nâng cao: hóa biểu + dấu bình ♮</option>
-    </select></label>
+    <label class="chk" id="optAcc" title="Thăng ♯, giáng ♭, bình ♮, hóa biểu đầu khuông và dấu hóa đánh lừa"><input type="checkbox" id="acc"> Dấu hóa ♯ ♭ ♮</label>
     <label class="chk" id="optTimer"><input type="checkbox" id="timer"> ⏱ Đếm giờ</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
     <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
@@ -299,8 +295,8 @@ function randAcc(d, chance) {
   if (li !== 0 && li !== 3) opts.push(-1);
   return opts[rnd(opts.length)];
 }
-// Mức dấu hóa: 0 = không, 1 = có ♯ ♭ ngẫu nhiên, 2 = nâng cao (hóa biểu + dấu bình; chỉ ở Học nốt)
-const accLevel = () => +$("acc").value || 0;
+// Dấu hóa: tắt = chỉ nốt tự nhiên; bật = có tất cả (♯ ♭ ngẫu nhiên; ở Học nốt có thêm hóa biểu + dấu bình ♮ + dấu đánh lừa)
+const accLevel = () => $("acc").checked ? 2 : 0;
 const accOn = () => accLevel() >= 1;
 const yOf = (d, clef) => BOTTOM - (d - CLEFS[clef].bottom) * S / 2;
 
@@ -1348,8 +1344,8 @@ for (let i = 0; i <= LEDGER_MAX; i++) $("ledger").add(new Option(String(i), Stri
 $("ledger").value = String(Math.min(LEDGER_MAX, Math.max(0, +lsGet("opt_ledgerN", 2) || 0)));
 $("ledger").addEventListener("change", () => { lsSet("opt_ledgerN", +$("ledger").value); view(state.phase); if (state.phase === "note") newNote(); });
 $("ottava").addEventListener("change", () => { if (state.phase === "note") renderNote(); });
-$("acc").value = String(Math.min(2, Math.max(0, +lsGet("opt_accLevel", lsGet("opt_acc", false) ? 1 : 0) || 0)));
-$("acc").addEventListener("change", () => lsSet("opt_accLevel", accLevel()));
+$("acc").checked = !!lsGet("opt_accAll", (+lsGet("opt_accLevel", 0) || 0) > 0 || !!lsGet("opt_acc", false));
+$("acc").addEventListener("change", () => lsSet("opt_accAll", $("acc").checked));
 ["autoSound", "earRef", "timer", "ottava"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
