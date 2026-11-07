@@ -164,7 +164,6 @@
   <h1><span class="appname">🎹 Học Piano</span><span class="visitors" id="visitors" hidden></span></h1>
 
   <nav class="modes" id="modes"></nav>
-  <p class="sub" id="modeDesc"></p>
   <div class="midibar" id="midiBar">
     <button class="pill" id="midiBtn">🎹 Kết nối đàn (MIDI)</button>
     <label class="chk" id="optOct"><input type="checkbox" id="midiAnyOct"> Không cần đúng quãng tám</label>
@@ -644,7 +643,6 @@ function setMode(m) {
   const tab = isNote ? "note" : m;
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === tab));
   document.querySelectorAll("#noteClef button").forEach(b => b.classList.toggle("on", b.dataset.v === state.noteClef));
-  $("modeDesc").textContent = isNote ? NOTE_CLEFS[m] : MODES.find(x => x.id === m).desc;
   resetStats();
   if (m === "chord") { view("chord"); return newChord(); }
   if (m === "sym") { view("sym"); return newSymbol(); }
