@@ -649,7 +649,7 @@ function revealEar(guess) {
   markAnswers(guess && right ? guess.li : n.li, guess, right);
   renderEar(); drawKeyboard(target);
   play(target);
-  scheduleAuto(newEar);
+  scheduleAuto(newEar, 2000);
 }
 
 // ===================== Chế độ hợp âm =====================
@@ -797,7 +797,7 @@ function revealChord(guess) {
   });
   renderChord(); drawKeyboard(chordMidis());
   if ($("autoSound").checked) playChord();
-  scheduleAuto(newChord);
+  scheduleAuto(newChord, 3000);
 }
 
 // ===================== Chế độ ký hiệu =====================
@@ -950,7 +950,7 @@ function revealSym(guess) {
     b.disabled = true;
     if (i === right) b.className = "right"; else if (i === guess) b.className = "wrong";
   });
-  scheduleAuto(newSymbol);
+  scheduleAuto(newSymbol, 4000);
 }
 
 // ===================== Sự kiện =====================
