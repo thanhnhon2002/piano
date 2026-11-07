@@ -166,7 +166,6 @@
   <nav class="modes" id="modes"></nav>
   <div class="midibar" id="midiBar">
     <button class="pill" id="midiBtn">🎹 Kết nối đàn (MIDI)</button>
-    <label class="chk" id="optOct"><input type="checkbox" id="midiAnyOct"> Không cần đúng quãng tám</label>
     <label class="kbsel">Bàn phím: <select id="kbSize"></select></label>
     <span class="midistatus" id="midiStatus"></span>
   </div>
@@ -860,7 +859,8 @@ function revealEar(guess) {
   const target = midiOf(e.d, e.acc), n = nameOf(e.d, e.acc), alt = enharmonic(e.d, e.acc);
   let verdict = "", right = false;
   if (guess) {
-    right = ((midiOf(EAR_LO + guess.li, guess.acc) - target) % 12 + 12) % 12 === 0; // chấp nhận tên đồng âm
+    right = guess.ok !== undefined ? guess.ok // bấm trên đàn MIDI: phải đúng phím
+      : ((midiOf(EAR_LO + guess.li, guess.acc) - target) % 12 + 12) % 12 === 0; // chọn trên màn hình: chấp nhận tên đồng âm
     score(right);
     verdict = right ? '<span class="ok">✔ Chính xác!</span> ' : '<span class="no">✘ Chưa đúng.</span> ';
   }
@@ -1198,7 +1198,6 @@ function setMidiStatus(text, kind) {
 function updateMidiUI() {
   $("midiBtn").textContent = midiOn() ? "🎹 Đàn đã kết nối" : "🎹 Kết nối đàn (MIDI)";
   $("midiBtn").classList.toggle("on", midiOn());
-  $("optOct").style.display = midiOn() && state.phase === "note" ? "" : "none";
   $("midiBar").style.display = state.phase === "sym" ? "none" : "";
   if (state.phase) $("hint").textContent = HINTS[state.phase] +
     (accOn() && VIEWS[state.phase].includes("accSel") ? HINT_ACC : "") +
@@ -1244,7 +1243,7 @@ function midiAnswerNote(m) {
   const it = state.notes[state.idx];
   if (!it) return;
   const target = midiOf(it.d, it.acc);
-  const ok = $("midiAnyOct").checked ? mod12(m - target) === 0 : m === target;
+  const ok = m === target; // bấm trên đàn thì phải đúng chính xác phím (đúng cả quãng tám)
   const g = ok ? { li: it.d % 7, acc: it.acc, midi: m, ok: true } : { ...spellMidi(m, it.acc), midi: m, ok: false };
   answerNote(g);
 }
@@ -1252,7 +1251,7 @@ function midiAnswerEar(m) {
   const e = state.ear;
   if (!e || e.revealed) return;
   const target = midiOf(e.d, e.acc);
-  revealEar(mod12(m - target) === 0 ? { li: e.d % 7, acc: e.acc, midi: m, ok: true } : { ...spellMidi(m, e.acc), midi: m, ok: false });
+  revealEar(m === target ? { li: e.d % 7, acc: e.acc, midi: m, ok: true } : { ...spellMidi(m, e.acc), midi: m, ok: false });
 }
 function midiAnswerChord() {
   const st = state.chord;
@@ -1288,7 +1287,7 @@ for (let i = 0; i <= LEDGER_MAX; i++) $("ledger").add(new Option(String(i), Stri
 $("ledger").value = String(Math.min(LEDGER_MAX, Math.max(0, +lsGet("opt_ledgerN", 2) || 0)));
 $("ledger").addEventListener("change", () => { lsSet("opt_ledgerN", +$("ledger").value); view(state.phase); if (state.phase === "note") newNote(); });
 $("ottava").addEventListener("change", () => { if (state.phase === "note") renderNote(); });
-["acc", "autoSound", "earRef", "timer", "midiAnyOct", "ottava"].forEach(id => {
+["acc", "autoSound", "earRef", "timer", "ottava"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));

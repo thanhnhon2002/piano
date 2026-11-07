@@ -26,8 +26,8 @@ Tùy chọn: số dòng kẻ phụ (0–5, áp dụng cho cả trên và dưới
 
 Cắm đàn vào máy tính bằng cáp USB (hoặc cáp MIDI qua bộ chuyển USB-MIDI), bật đàn, rồi bấm **🎹 Kết nối đàn (MIDI)** và chọn **Cho phép**. Sau đó trả lời bằng cách bấm trên đàn:
 
-- **Học nốt:** bấm đúng phím; mặc định phải đúng quãng tám (bỏ chọn được bằng ô *Không cần đúng quãng tám*)
-- **Luyện nghe:** bấm phím có cùng tên nốt với âm vừa nghe (quãng nào cũng được)
+- **Học nốt:** bấm đúng chính xác phím của nốt (đúng cả quãng tám)
+- **Luyện nghe:** bấm đúng chính xác phím vừa nghe
 - **Hợp âm:** bấm đủ các nốt của hợp âm, thể đảo nào cũng được
 
 Chạy được trên Chrome, Edge, Opera (máy tính và Android). Safari và iPhone/iPad chưa hỗ trợ Web MIDI.
