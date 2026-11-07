@@ -10,7 +10,7 @@
 |---|---|
 | 𝄞 Khóa Sol | Đoán tên nốt trên khóa Sol |
 | 𝄢 Khóa Fa | Đoán tên nốt trên khóa Fa |
-| 𝄞𝄢 Hai khóa | Khóa Sol và khóa Fa ngẫu nhiên xen kẽ |
+| 𝄞𝄢 Hai khóa | Khóa Sol và khóa Fa ngẫu nhiên xen kẽ, có đếm giờ: bắt đầu 10 giây/nốt, đúng thì bớt 0,5 giây (tối thiểu 1 giây), sai hoặc hết giờ thì về lại 10 giây |
 | ♬ Hợp âm | Nhận biết hợp âm trưởng, thứ, giảm, tăng, hợp âm 7 và các thể đảo |
 | 🎧 Luyện nghe | Nghe nốt Đô chuẩn rồi nốt bí ẩn, đoán tên nốt |
 | ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |

@@ -99,6 +99,13 @@
   .autobar { width: 160px; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px; }
   .autobar i { display: block; height: 100%; background: var(--accent); animation: autofill linear forwards; }
   @keyframes autofill { from { width: 0; } to { width: 100%; } }
+  .timer { display: flex; align-items: center; gap: 10px; padding: 4px 4px 0; font-weight: 700; }
+  .timer #tLeft { min-width: 64px; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+  .timer #tLevel { color: var(--muted); font-weight: 600; font-size: .85rem; white-space: nowrap; }
+  .timer .progress { flex: 1; height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .timer .progress i { display: block; height: 100%; width: 100%; background: var(--accent); }
+  .timer.low #tLeft { color: var(--bad); }
+  .timer.low .progress i { background: var(--bad); }
   .accsel { display: flex; justify-content: center; margin-top: 8px; }
   .accsel .seg button { padding: 7px 14px; font-weight: 600; }
   .answers { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 10px 0; }
@@ -145,6 +152,7 @@
   <div class="settings" id="noteOpts">
     <label class="chk" id="optLedger"><input type="checkbox" id="ledger" checked> Dòng kẻ phụ</label>
     <label class="chk" id="optAcc"><input type="checkbox" id="acc"> Thăng/giáng ♯♭</label>
+    <label class="chk" id="optTimer"><input type="checkbox" id="timer" checked> ⏱ Đếm giờ</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
     <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
   </div>
@@ -159,6 +167,11 @@
   </div>
 
   <div class="card">
+    <div class="timer" id="timerBox">
+      <span id="tLeft">10.0s</span>
+      <div class="progress"><i id="tFill"></i></div>
+      <span id="tLevel"></span>
+    </div>
     <svg id="staff" viewBox="0 0 360 215" role="img" aria-label="Khuông nhạc"></svg>
 
     <div class="result" id="result"></div>
@@ -427,18 +440,18 @@ function synthNote(c, midi, t) {
 const state = { mode: "both", clef: T, d: 30, acc: 0, revealed: false, good: 0, bad: 0, streak: 0,
   chord: null, sym: null, ear: null, phase: "", accSel: 0 };
 
-const PARTS = ["chordOpts", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"];
+const PARTS = ["chordOpts", "timerBox", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"];
 const VIEWS = {
-  note: ["staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
+  note: ["timerBox", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
   ear: ["staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
   sym: ["staff", "result", "answers", "actions", "stats"],
   chord: ["chordOpts", "staff", "result", "answers", "actions", "kbd", "stats"],
 };
 const OPTS = {
-  note: ["optLedger", "optAcc", "optSound"], chord: ["optAcc", "optSound"],
+  note: ["optLedger", "optAcc", "optTimer", "optSound"], chord: ["optAcc", "optSound"],
   ear: ["optAcc", "optRef"], sym: [],
 };
-const ALL_OPTS = ["optLedger", "optAcc", "optSound", "optRef"];
+const ALL_OPTS = ["optLedger", "optAcc", "optTimer", "optSound", "optRef"];
 
 // --- Tự chuyển sang câu tiếp sau khi hiện kết quả
 const AUTO_MS = 1000;
@@ -476,8 +489,10 @@ function view(name) {
   state.phase = name;
   PARTS.forEach(id => { $(id).style.display = VIEWS[name].includes(id) ? "" : "none"; });
   if (VIEWS[name].includes("accSel") && !accOn()) $("accSel").style.display = "none";
+  if (name === "note" && !timerOn()) $("timerBox").style.display = "none";
   $("soundBtn").style.display = name === "sym" ? "none" : "";
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
+  if (state.mode !== "both") $("optTimer").style.display = "none"; // đếm giờ chỉ có ở chế độ Hai khóa
   $("noteOpts").style.display = OPTS[name].length ? "" : "none";
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
 }
@@ -538,8 +553,8 @@ function markAnswers(rightLi, guess, guessOk) {
 }
 
 function setMode(m) {
-  clearAuto();
-  state.mode = m;
+  clearAuto(); stopQTimer();
+  state.mode = m; state.tLimit = T_MAX;
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
   $("modeDesc").textContent = MODES.find(x => x.id === m).desc;
   resetStats();
@@ -552,6 +567,31 @@ function setMode(m) {
 }
 
 // ===================== Chế độ đoán nốt (Sol / Fa / Hai khóa) =====================
+// Đếm giờ (chỉ ở Hai khóa): bắt đầu 10 giây/nốt, mỗi câu đúng bớt 0,5 giây, tối thiểu 1 giây
+const T_MAX = 10, T_MIN = 1, T_STEP = 0.5;
+state.tLimit = T_MAX;
+let qTimer = null;
+const timerOn = () => state.mode === "both" && $("timer").checked;
+const fmtSec = v => (Number.isInteger(v) ? v : v.toFixed(1)) + "s";
+function stopQTimer() { if (qTimer) { clearInterval(qTimer); qTimer = null; } }
+function startQTimer() {
+  stopQTimer();
+  if (!timerOn()) return;
+  state.tEnd = performance.now() + state.tLimit * 1000;
+  tickQ();
+  qTimer = setInterval(tickQ, 100);
+}
+function tickQ() {
+  const left = Math.max(0, (state.tEnd - performance.now()) / 1000);
+  renderTimer(left);
+  if (left <= 0) { stopQTimer(); revealNote(null, true); }
+}
+function renderTimer(left, levelText) {
+  $("tLeft").textContent = left.toFixed(1) + "s";
+  $("tFill").style.width = (left / state.tLimit * 100) + "%";
+  $("timerBox").classList.toggle("low", left <= Math.max(1, state.tLimit * 0.3));
+  $("tLevel").textContent = levelText || `Mức: ${fmtSec(state.tLimit)} / nốt`;
+}
 function renderNote() {
   const svg = $("staff"); svg.innerHTML = "";
   drawLines(svg); drawClef(svg, state.clef);
@@ -566,15 +606,33 @@ function newNote() {
   $("result").innerHTML = '<span class="hint">Nốt này là nốt gì?</span>';
   resetAnswerButtons();
   renderNote(); drawKeyboard(null);
+  startQTimer();
 }
-function revealNote(guess) {
+function revealNote(guess, timeout) {
   if (state.revealed) return;
   state.revealed = true;
+  stopQTimer();
   const n = nameOf(state.d, state.acc);
   let verdict = "", right = false;
   if (guess) {
     right = guess.li === n.li && guess.acc === state.acc; score(right);
     verdict = right ? '<span class="ok">✔ Chính xác!</span> ' : '<span class="no">✘ Chưa đúng.</span> ';
+  } else if (timeout) {
+    score(false);
+    verdict = '<span class="no">⏰ Hết giờ!</span> ';
+  }
+  if (timerOn()) {
+    const left = Math.max(0, (state.tEnd - performance.now()) / 1000);
+    if (right && state.tLimit > T_MIN) {
+      state.tLimit = Math.max(T_MIN, state.tLimit - T_STEP);
+      renderTimer(left, `Nốt tiếp: ${fmtSec(state.tLimit)} ⬇`);
+    } else if (right) {
+      renderTimer(left, "Mức nhanh nhất: 1s 🔥");
+    } else if (guess || timeout) { // sai hoặc hết giờ: quay về 10 giây
+      const was = state.tLimit;
+      state.tLimit = T_MAX;
+      renderTimer(left, was < T_MAX ? `Sai: về lại ${fmtSec(T_MAX)} ↺` : undefined);
+    }
   }
   $("result").innerHTML = `<div class="big">${verdict}${n.vi} <span class="small">(${n.en})</span></div>` +
     `<div class="small">${state.clef === T ? "khóa Sol" : "khóa Fa"}${guess && !right ? ` · bạn chọn ${label(guess)}` : ""}</div>`;
@@ -943,6 +1001,7 @@ MODES.forEach(m => {
 });
 const byMode = (sym, ear, note, chord) => () => (state.mode === "sym" ? sym : state.mode === "ear" ? ear : state.mode === "chord" ? chord : note)();
 $("autoBtn").onclick = () => setAuto(!autoOn);
+$("timer").addEventListener("change", () => { state.tLimit = T_MAX; view(state.phase); if (state.phase === "note") newNote(); });
 setAuto(autoOn);
 $("nextBtn").onclick = byMode(newSymbol, newEar, newNote, newChord);
 $("soundBtn").onclick = byMode(() => {}, playEar, () => play(midiOf(state.d, state.acc)), playChord);
@@ -950,7 +1009,7 @@ buildAccSel();
 initChordOpts();
 
 // Ghi nhớ các tùy chọn
-["ledger", "acc", "autoSound", "earRef"].forEach(id => {
+["ledger", "acc", "autoSound", "earRef", "timer"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
