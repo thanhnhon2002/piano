@@ -37,6 +37,65 @@ fetch("https://__GC__.goatcounter.com/counter/%2Fpiano.json")
     el.hidden = false;
   })
   .catch(() => {});
+
+// ---- Mức độ sử dụng (sự kiện GoatCounter, không cookie, không thông tin cá nhân) ----
+// dung-N-phut : đã luyện thật sự N phút trong một lần mở (tab đang hiện + có thao tác trong 60 giây gần nhất)
+// mo-lan-X    : đây là lần mở app thứ mấy trên máy này (cách nhau >= 30 phút mới tính lần mới)
+// so-ngay-X   : đã dùng app bao nhiêu ngày khác nhau
+// tra-loi-N   : số câu đã trả lời trong một lần mở
+// tab-...     : chế độ được dùng (mỗi lần mở chỉ gửi 1 lần cho mỗi tab)
+(function () {
+  const sent = new Set();
+  function ev(name) {
+    if (sent.has(name)) return;
+    sent.add(name);
+    let tries = 0;
+    (function send() {
+      const gc = window.goatcounter;
+      if (gc && gc.count) gc.count({ path: name, title: name, event: true });
+      else if (tries++ < 20) setTimeout(send, 1500);
+    })();
+  }
+  const ls = {
+    get(k, d) { try { const v = localStorage.getItem("hp_" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("hp_" + k, JSON.stringify(v)); } catch (e) {} },
+  };
+  const bucket = (n, edges) => { for (const [max, name] of edges) if (n <= max) return name; return edges[edges.length - 1][1]; };
+
+  // Lần mở thứ mấy / số ngày dùng
+  const now = Date.now(), today = new Date().toISOString().slice(0, 10);
+  if (now - ls.get("lastSeen", 0) > 30 * 60 * 1000) {
+    const opens = ls.get("opens", 0) + 1;
+    ls.set("opens", opens);
+    ev("mo-lan-" + bucket(opens, [[1, "1"], [2, "2"], [5, "3-5"], [10, "6-10"], [20, "11-20"], [Infinity, "tren-20"]]));
+  }
+  if (ls.get("lastDay", "") !== today) {
+    const days = ls.get("days", 0) + 1;
+    ls.set("days", days); ls.set("lastDay", today);
+    ev("so-ngay-" + bucket(days, [[1, "1"], [2, "2"], [5, "3-5"], [10, "6-10"], [30, "11-30"], [Infinity, "tren-30"]]));
+  }
+  ls.set("lastSeen", now);
+
+  // Thời gian luyện thật sự
+  let lastAct = 0, active = 0, answers = 0;
+  const touch = () => { lastAct = Date.now(); ls.set("lastSeen", lastAct); };
+  ["pointerdown", "keydown"].forEach(t => document.addEventListener(t, touch, { passive: true }));
+  setInterval(() => {
+    if (document.visibilityState !== "visible" || Date.now() - lastAct > 60000) return;
+    active += 15;
+    for (const m of [1, 5, 15, 30, 60]) if (active >= m * 60) ev("dung-" + m + "-phut");
+  }, 15000);
+
+  const TABS = { note: "tab-hoc-not", chord: "tab-hop-am", ear: "tab-luyen-nghe", sym: "tab-ky-hieu" };
+  window.__appTrack = function (type, data) {
+    if (type === "answer") {
+      touch();
+      answers++;
+      for (const m of [10, 50, 100, 200]) if (answers >= m) ev("tra-loi-" + m);
+    } else if (type === "tab" && TABS[data]) ev(TABS[data]);
+  };
+  ev(TABS.note); // app luôn mở ở tab Học nốt (trước khi đoạn này chạy)
+})();
 </script>
 """.replace("__GC__", GOATCOUNTER)
 

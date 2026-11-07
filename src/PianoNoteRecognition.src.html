@@ -564,7 +564,10 @@ function resetStats() { state.good = state.bad = state.streak = 0; updateStats()
 function updateStats() {
   $("sGood").textContent = state.good; $("sBad").textContent = state.bad; $("sStreak").textContent = state.streak;
 }
+// Móc thống kê: bản web gắn window.__appTrack để đếm mức độ sử dụng; file gửi riêng không có nên không làm gì
+function track(type, data) { try { if (window.__appTrack) window.__appTrack(type, data); } catch (e) {} }
 function score(right) {
+  track("answer");
   if (right) { state.good++; state.streak++; } else { state.bad++; state.streak = 0; }
   updateStats();
 }
@@ -642,6 +645,7 @@ function setMode(m) {
   if (isNote) state.noteClef = m;
   state.mode = m; state.tLimit = T_MAX;
   const tab = isNote ? "note" : m;
+  track("tab", tab);
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === tab));
   document.querySelectorAll("#noteClef button").forEach(b => b.classList.toggle("on", b.dataset.v === state.noteClef));
   resetStats();

@@ -34,6 +34,20 @@ Chạy được trên Chrome, Edge, Opera (máy tính và Android). Safari và i
 
 Ô **Bàn phím** cho chọn cỡ bàn phím hiển thị trên màn hình theo đàn của bạn: 58 phím (mặc định, vừa đủ cho app), 25, 32, 37, 49, 61, 73, 76 hoặc 88 phím.
 
+## Thống kê sử dụng (chỉ bản web)
+
+Bản web dùng [GoatCounter](https://nhonpiano.goatcounter.com) (không cookie, không thu thập thông tin cá nhân). Ngoài lượt truy cập `/piano`, app gửi các sự kiện:
+
+| Sự kiện | Ý nghĩa |
+|---|---|
+| `dung-1-phut` … `dung-60-phut` | Đã luyện thật sự 1 / 5 / 15 / 30 / 60 phút trong một lần mở |
+| `mo-lan-1`, `mo-lan-2`, `mo-lan-3-5`, … | Lần mở app thứ mấy trên cùng máy (cách nhau ≥ 30 phút) |
+| `so-ngay-1`, `so-ngay-2`, `so-ngay-3-5`, … | Đã dùng app bao nhiêu ngày khác nhau |
+| `tra-loi-10` … `tra-loi-200` | Số câu đã trả lời trong một lần mở |
+| `tab-hoc-not`, `tab-hop-am`, `tab-luyen-nghe`, `tab-ky-hieu` | Chế độ được dùng |
+
+File `PianoNoteRecognition.html` gửi riêng không chứa phần thống kê.
+
 ## Cấu trúc thư mục
 
 ```
