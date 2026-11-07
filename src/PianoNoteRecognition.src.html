@@ -676,6 +676,7 @@ function answerNote(g) {
   if (state.notes.length === 1) return revealNote(g);
   const it = state.notes[state.idx];
   it.ans = g;
+  if ($("autoSound").checked) play(midiOf(it.d, it.acc)); // luôn phát âm của nốt đúng
   const b = $("answers").children[g.li];
   b.className = noteRight(it) ? "right" : "wrong";
   setTimeout(() => { if (!state.revealed) b.className = ""; }, 250);
@@ -730,7 +731,8 @@ function revealNote(guess, timeout) {
     setAccSel(0);
   }
   renderNote(); drawKeyboard(noteMidis());
-  if ($("autoSound").checked) playNotes();
+  // 1 nốt: phát nốt đó. Nhiều nốt: từng nốt đã phát khi chọn, chỉ phát lại cả khuông khi hết giờ
+  if ($("autoSound").checked && (n === 1 || timeout)) playNotes();
   scheduleAuto(newNote, allRight ? AUTO_MS : 2500); // sai / hết giờ: chờ 2,5 giây để xem đáp án
 }
 
