@@ -174,6 +174,7 @@
 
   <div class="settings" id="noteOpts">
     <span class="chk ledsel" id="optLedger">Dòng kẻ phụ: <select id="ledger" title="Số dòng kẻ phụ phía trên và phía dưới khuông"></select></span>
+    <label class="chk" id="optOtt" title="Nốt cần từ 4 dòng kẻ phụ trở lên được viết gọn bằng ký hiệu quãng tám"><input type="checkbox" id="ottava" checked> Dùng 8va/8vb</label>
     <label class="chk" id="optAcc"><input type="checkbox" id="acc"> Thăng/giáng ♯♭</label>
     <label class="chk" id="optTimer"><input type="checkbox" id="timer"> ⏱ Đếm giờ</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
@@ -394,7 +395,7 @@ function base(svg, clef = T, clefCls = "") { drawLines(svg); drawClef(svg, clef,
 // ===================== Bàn phím piano =====================
 // Các cỡ bàn phím phổ biến: [số phím, nốt thấp nhất, nốt cao nhất] (số MIDI, Đô giữa C4 = 60)
 const KB_SIZES = {
-  auto: { label: "58 phím (vừa đủ cho app)", lo: 31, hi: 88 }, // G1–E6
+  auto: { label: "Tự động (vừa đủ cho app)", lo: 31, hi: 88 }, // tối thiểu G1–E6, tự mở rộng theo số dòng kẻ phụ
   25: { label: "25 phím (C3–C5)", lo: 48, hi: 72 },
   32: { label: "32 phím (F3–C6)", lo: 53, hi: 84 },
   37: { label: "37 phím (C3–C6)", lo: 48, hi: 84 },
@@ -414,7 +415,14 @@ function drawKeyboard(hlMidis) {
   const held = typeof midi !== "undefined" ? midi.held : new Set(); // phím đang bấm trên đàn MIDI
   const fillW = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#fff";
   const fillB = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#222";
-  const { lo, hi } = KB_SIZES[kbSize];
+  let { lo, hi } = KB_SIZES[kbSize];
+  if (kbSize === "auto") { // mở rộng cho đủ nốt thấp nhất (khóa Fa) và cao nhất (khóa Sol), kể cả ♭/♯
+    const k = ledgerCount();
+    lo = Math.min(lo, midiOf(CLEFS.bass.bottom - 1 - 2 * k) - 1);
+    hi = Math.max(hi, midiOf(CLEFS.treble.bottom + 9 + 2 * k) + 1);
+    while (!isWhite(lo)) lo--;
+    while (!isWhite(hi)) hi++;
+  }
   const whites = [];
   for (let m = lo; m <= hi; m++) if (isWhite(m)) whites.push(m);
   const w = 580 / whites.length, h = 80, fs = Math.min(8, w * 0.75);
@@ -503,10 +511,10 @@ const VIEWS = {
   chord: ["chordOpts", "staff", "result", "answers", "actions", "kbd", "stats"],
 };
 const OPTS = {
-  note: ["optLedger", "optAcc", "optTimer", "optSound"], chord: ["optAcc", "optSound"],
+  note: ["optLedger", "optOtt", "optAcc", "optTimer", "optSound"], chord: ["optAcc", "optSound"],
   ear: ["optAcc", "optRef"], sym: [],
 };
-const ALL_OPTS = ["optLedger", "optAcc", "optTimer", "optSound", "optRef"];
+const ALL_OPTS = ["optLedger", "optOtt", "optAcc", "optTimer", "optSound", "optRef"];
 
 // --- Tự chuyển sang câu tiếp sau khi hiện kết quả
 const AUTO_MS = 1000;
@@ -547,6 +555,7 @@ function view(name) {
   if (name === "note" && !timerOn()) $("timerBox").style.display = "none";
   $("soundBtn").style.display = name === "sym" ? "none" : "";
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
+  if (ledgerCount() < OTT_FROM) $("optOtt").style.display = "none"; // 8va/8vb chỉ cần khi có từ 4 dòng kẻ phụ
   $("noteOpts").style.display = OPTS[name].length ? "" : "none";
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
   updateMidiUI();
@@ -561,7 +570,18 @@ function score(right) {
 }
 // Khoảng nốt theo số dòng kẻ phụ (dùng chung cho phía trên và phía dưới khuông).
 // 0 dòng: từ khe ngay dưới dòng 1 đến khe ngay trên dòng 5; mỗi dòng kẻ phụ thêm 2 bậc (dòng + khe ngoài nó).
-const LEDGER_MAX = 3;
+const LEDGER_MAX = 5;
+// Theo cách ghi nhạc thông dụng: nốt cần từ 4 dòng kẻ phụ trở lên thì viết gọn bằng ký hiệu quãng tám
+// (8va: viết thấp xuống 1 quãng tám, chơi cao hơn; 8vb: viết cao lên 1 quãng tám, chơi thấp hơn).
+const OTT_FROM = 4;
+function displayOf(d, clef) {
+  const b = CLEFS[clef].bottom, t = b + 8;
+  if ($("ottava").checked && ledgerCount() >= OTT_FROM) {
+    if (d >= t + 2 * OTT_FROM) return { d: d - 7, ott: 1 };
+    if (d <= b - 2 * OTT_FROM) return { d: d + 7, ott: -1 };
+  }
+  return { d, ott: 0 };
+}
 const ledgerCount = () => Math.min(LEDGER_MAX, Math.max(0, +$("ledger").value || 0));
 function noteRange(clef) {
   const b = CLEFS[clef].bottom, t = b + 8, k = ledgerCount();
@@ -616,6 +636,7 @@ function markAnswers(rightLi, guess, guessOk) {
 
 function setMode(m) {
   clearAuto(); stopQTimer();
+  $("staff").setAttribute("viewBox", "0 0 360 215");
   if (m === "note") m = state.noteClef;
   const isNote = m in NOTE_CLEFS;
   if (isNote) state.noteClef = m;
@@ -680,6 +701,7 @@ function renderNote() {
   svg.innerHTML = "";
   drawLines(svg); drawClef(svg, state.clef);
   const lastAcc = {}; // dấu hóa còn hiệu lực trên khuông → thêm dấu bình ♮ khi cần
+  const tops = [], bottoms = [], marks = [];
   notes.forEach((it, j) => {
     const x = xs[j], cur = n > 1 && !state.revealed && j === state.idx;
     let cls = "";
@@ -688,13 +710,31 @@ function renderNote() {
     else if (cur) cls = "hl";
     const natural = it.acc === 0 && !!lastAcc[it.d];
     lastAcc[it.d] = it.acc;
-    drawNote(svg, x, it.d, state.clef, { cls, acc: it.acc, natural });
-    if (cur) el("path", { d: `M${x - 6} 14 L${x + 6} 14 L${x} 22 Z`, class: "f hl" }, svg);
+    const disp = displayOf(it.d, state.clef), y = yOf(disp.d, state.clef);
+    drawNote(svg, x, disp.d, state.clef, { cls, acc: it.acc, natural });
+    if (disp.ott) { // ký hiệu quãng tám: 8va phía trên nốt, 8vb phía dưới nốt
+      // nốt cao có đuôi quay xuống nên ghi 8va sát trên đầu nốt; nốt thấp đuôi quay lên nên ghi 8vb sát dưới
+      const ty = disp.ott > 0 ? y - 15 : y + 24;
+      el("text", { x: x - 2, y: ty, "text-anchor": "middle", "font-size": 13, "font-weight": 700, "font-style": "italic",
+        "font-family": SERIF_FONT, class: "f " + cls }, svg).textContent = disp.ott > 0 ? "8va" : "8vb";
+      const ly = disp.ott > 0 ? ty - 4 : ty - 4;
+      el("line", { x1: x + 13, x2: x + 22, y1: ly, y2: ly, class: "s " + cls, "stroke-dasharray": "2 2", "stroke-width": 1.2 }, svg);
+      el("line", { x1: x + 22, x2: x + 22, y1: ly, y2: ly + (disp.ott > 0 ? 6 : -6), class: "s " + cls, "stroke-width": 1.2 }, svg);
+    }
+    tops.push(y - 3.5 * S - 22); bottoms.push(y + 3.5 * S + 22);
+    marks.push({ x, cur, it });
+  });
+  // Tự giãn khung khuông nhạc khi có nốt rất cao / rất thấp (nhiều dòng kẻ phụ)
+  const top = Math.min(0, ...tops), labelY = Math.max(199, ...bottoms.map(v => v - 4));
+  const bottom = Math.max(215, n > 1 ? labelY + 16 : Math.max(...bottoms));
+  svg.setAttribute("viewBox", `0 ${top} 360 ${bottom - top}`);
+  marks.forEach(({ x, cur, it }) => {
+    if (cur) el("path", { d: `M${x - 6} ${top + 4} L${x + 6} ${top + 4} L${x} ${top + 12} Z`, class: "f hl" }, svg);
     if (n > 1 && (it.ans || state.revealed)) {
       const ok = noteRight(it), name = nameOf(it.d, it.acc).vi;
-      el("text", { x, y: 199, class: "lbl " + (it.ans ? (ok ? "good" : "bad") : "") }, svg)
+      el("text", { x, y: labelY, class: "lbl " + (it.ans ? (ok ? "good" : "bad") : "") }, svg)
         .textContent = it.ans ? label(it.ans) : "—";
-      if (state.revealed && !ok) el("text", { x, y: 213, class: "lbl good" }, svg).textContent = "→ " + name;
+      if (state.revealed && !ok) el("text", { x, y: labelY + 14, class: "lbl good" }, svg).textContent = "→ " + name;
     }
   });
 }
@@ -1248,8 +1288,9 @@ initChordOpts();
 // Số dòng kẻ phụ (0–3, mặc định 2)
 for (let i = 0; i <= LEDGER_MAX; i++) $("ledger").add(new Option(String(i), String(i)));
 $("ledger").value = String(Math.min(LEDGER_MAX, Math.max(0, +lsGet("opt_ledgerN", 2) || 0)));
-$("ledger").addEventListener("change", () => { lsSet("opt_ledgerN", +$("ledger").value); if (state.phase === "note") newNote(); });
-["acc", "autoSound", "earRef", "timer", "midiAnyOct"].forEach(id => {
+$("ledger").addEventListener("change", () => { lsSet("opt_ledgerN", +$("ledger").value); view(state.phase); if (state.phase === "note") newNote(); });
+$("ottava").addEventListener("change", () => { if (state.phase === "note") renderNote(); });
+["acc", "autoSound", "earRef", "timer", "midiAnyOct", "ottava"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));

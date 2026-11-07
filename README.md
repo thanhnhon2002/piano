@@ -13,7 +13,7 @@
 | 🎧 Luyện nghe | Nghe nốt Đô chuẩn rồi nốt bí ẩn, đoán tên nốt |
 | ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |
 
-Tùy chọn: số dòng kẻ phụ (0–3, áp dụng cho cả trên và dưới khuông), nốt thăng/giáng (♯ ♭), phát âm thanh piano thật, tự chuyển câu (nút ⏸ Dừng tự chuyển / ▶ Tự chuyển).
+Tùy chọn: số dòng kẻ phụ (0–5, áp dụng cho cả trên và dưới khuông; từ 4 dòng có thể viết gọn bằng ký hiệu quãng tám 8va/8vb), nốt thăng/giáng (♯ ♭), phát âm thanh piano thật, tự chuyển câu (nút ⏸ Dừng tự chuyển / ▶ Tự chuyển).
 
 **Phím tắt:**
 - `1`–`7` hoặc `C D E F G A B`: chọn nốt
