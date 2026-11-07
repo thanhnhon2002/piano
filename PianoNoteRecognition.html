@@ -96,6 +96,9 @@
   .result .desc { margin-top: 6px; font-size: .98rem; line-height: 1.45; max-width: 520px; }
   .ok { color: var(--good); } .no { color: var(--bad); }
 
+  .autobar { width: 160px; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+  .autobar i { display: block; height: 100%; background: var(--accent); animation: autofill 2s linear forwards; }
+  @keyframes autofill { from { width: 0; } to { width: 100%; } }
   .accsel { display: flex; justify-content: center; margin-top: 8px; }
   .accsel .seg button { padding: 7px 14px; font-weight: 600; }
   .answers { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 10px 0; }
@@ -165,6 +168,7 @@
     <label class="chk" id="optLedger"><input type="checkbox" id="ledger" checked> Dòng kẻ phụ</label>
     <label class="chk" id="optAcc"><input type="checkbox" id="acc"> Thăng/giáng ♯♭</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
+    <label class="chk" id="optAuto"><input type="checkbox" id="autoNext"> Tự chuyển nốt</label>
     <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
   </div>
 
@@ -496,9 +500,22 @@ const VIEWS = {
   runDone: ["summary"],
 };
 const OPTS = {
-  note: ["optLedger", "optAcc", "optSound"], runSetup: ["optLedger", "optAcc", "optSound"],
-  ear: ["optAcc", "optRef"], run: [], sym: [], runDone: [],
+  note: ["optLedger", "optAcc", "optSound", "optAuto"], runSetup: ["optLedger", "optAcc", "optSound"],
+  ear: ["optAcc", "optRef", "optAuto"], run: [], sym: [], runDone: [],
 };
+const ALL_OPTS = ["optLedger", "optAcc", "optSound", "optAuto", "optRef"];
+
+// --- Tự chuyển sang câu tiếp sau khi hiện kết quả
+const AUTO_MS = 2000;
+let autoTimer = null;
+function clearAuto() { if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; } }
+function scheduleAuto(next) {
+  clearAuto();
+  if (!$("autoNext").checked) return;
+  const phase = state.phase;
+  $("result").insertAdjacentHTML("beforeend", '<div class="autobar" title="Tự chuyển sau 2 giây"><i></i></div>');
+  autoTimer = setTimeout(() => { autoTimer = null; if (state.phase === phase) next(); }, AUTO_MS);
+}
 const HINT_ACC = " · − / + = giáng / thăng";
 const HINTS = {
   note: "Phím tắt: Space = hiện kết quả · Enter / → = nốt tiếp · 1–7 hoặc C D E F G A B = chọn nốt · R = nghe lại",
@@ -513,7 +530,7 @@ function view(name) {
   PARTS.forEach(id => { $(id).style.display = VIEWS[name].includes(id) ? "" : "none"; });
   if (VIEWS[name].includes("accSel") && !accOn()) $("accSel").style.display = "none";
   $("soundBtn").style.display = name === "note" || name === "ear" ? "" : "none";
-  ["optLedger", "optAcc", "optSound", "optRef"].forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
+  ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
   $("noteOpts").style.display = OPTS[name].length ? "" : "none";
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
 }
@@ -574,7 +591,7 @@ function markAnswers(rightLi, guess, guessOk) {
 }
 
 function setMode(m) {
-  stopTimer();
+  stopTimer(); clearAuto();
   state.mode = m; lsSet("mode", m);
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
   $("modeDesc").textContent = MODES.find(x => x.id === m).desc;
@@ -598,7 +615,7 @@ function newNote() {
   state.clef = state.mode === "both" ? (Math.random() < 0.5 ? T : B) : state.mode;
   const r = randNote(state.clef, state.clef === prevClef ? prev : null);
   state.d = r.d; state.acc = r.acc;
-  state.revealed = false;
+  state.revealed = false; clearAuto();
   $("result").innerHTML = '<span class="hint">Nốt này là nốt gì?</span>';
   resetAnswerButtons();
   renderNote(); drawKeyboard(null);
@@ -618,6 +635,7 @@ function revealNote(guess) {
   markAnswers(n.li, guess, right);
   renderNote(); drawKeyboard(midiOf(state.d, state.acc));
   if ($("autoSound").checked) play(midiOf(state.d, state.acc));
+  scheduleAuto(newNote);
 }
 
 // ===================== Chế độ luyện nghe =====================
@@ -631,7 +649,7 @@ function newEar() {
   const prev = state.ear; let d, acc;
   do { d = EAR_LO + rnd(EAR_HI - EAR_LO + 1); acc = randAcc(d, 0.4); }
   while (prev && midiOf(d, acc) === midiOf(prev.d, prev.acc));
-  state.ear = { d, acc, revealed: false };
+  state.ear = { d, acc, revealed: false }; clearAuto();
   $("result").innerHTML = '<span class="hint">🎧 Nghe và đoán nốt · bấm 🔊 để nghe lại</span>';
   resetAnswerButtons();
   renderEar(); drawKeyboard(null);
@@ -664,6 +682,7 @@ function revealEar(guess) {
   markAnswers(guess && right ? guess.li : n.li, guess, right);
   renderEar(); drawKeyboard(target);
   play(target);
+  scheduleAuto(newEar);
 }
 
 // ===================== Chế độ luyện liên tục =====================
@@ -972,6 +991,9 @@ buildAccSel();
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
 });
 $("ledger").addEventListener("change", () => { if (state.phase === "note") newNote(); if (state.phase === "runSetup") showBest(); });
+$("autoNext").addEventListener("change", () => {
+  if (!$("autoNext").checked) { clearAuto(); document.querySelectorAll(".autobar").forEach(b => b.remove()); }
+});
 $("acc").addEventListener("change", () => {
   view(state.phase);
   if (state.phase === "note") newNote();
