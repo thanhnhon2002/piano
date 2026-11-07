@@ -15,12 +15,12 @@
 | 🎧 Luyện nghe | Nghe nốt Đô chuẩn rồi nốt bí ẩn, đoán tên nốt |
 | ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |
 
-Tùy chọn: dòng kẻ phụ, nốt thăng/giáng (♯ ♭), phát âm thanh piano thật, tự chuyển câu sau 2 giây.
+Tùy chọn: dòng kẻ phụ, nốt thăng/giáng (♯ ♭), phát âm thanh piano thật, tự chuyển câu (nút ⏸ Dừng tự chuyển / ▶ Tự chuyển).
 
 **Phím tắt:**
 - `1`–`7` hoặc `C D E F G A B`: chọn nốt
 - `−` / `+`: chọn giáng / thăng
-- `Space`: hiện kết quả
+- `Space`: bật/tắt tự chuyển câu
 - `Enter`: sang câu tiếp
 - `R`: nghe lại
 

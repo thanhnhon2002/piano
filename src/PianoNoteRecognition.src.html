@@ -97,7 +97,7 @@
   .ok { color: var(--good); } .no { color: var(--bad); }
 
   .autobar { width: 160px; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px; }
-  .autobar i { display: block; height: 100%; background: var(--accent); animation: autofill 2s linear forwards; }
+  .autobar i { display: block; height: 100%; background: var(--accent); animation: autofill linear forwards; }
   @keyframes autofill { from { width: 0; } to { width: 100%; } }
   .accsel { display: flex; justify-content: center; margin-top: 8px; }
   .accsel .seg button { padding: 7px 14px; font-weight: 600; }
@@ -119,7 +119,8 @@
     flex: 1; padding: 14px; border-radius: 12px; border: 0; font: inherit; font-weight: 600;
     font-size: 1.05rem; cursor: pointer;
   }
-  #showBtn, .primary { background: var(--accent); color: #fff; }
+  #autoBtn, .primary { background: var(--accent); color: #fff; }
+  #autoBtn.off { background: var(--card); color: var(--ink); border: 1px solid var(--border); }
   #nextBtn { background: var(--ink); color: var(--bg); }
   #soundBtn { flex: 0 0 auto; background: var(--card); color: var(--ink); border: 1px solid var(--border); }
   .ghost { background: var(--card) !important; color: var(--ink) !important; border: 1px solid var(--border) !important; }
@@ -145,7 +146,6 @@
     <label class="chk" id="optLedger"><input type="checkbox" id="ledger" checked> Dòng kẻ phụ</label>
     <label class="chk" id="optAcc"><input type="checkbox" id="acc"> Thăng/giáng ♯♭</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
-    <label class="chk" id="optAuto"><input type="checkbox" id="autoNext" checked> Tự chuyển nốt</label>
     <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
   </div>
   <div class="settings" id="chordOpts">
@@ -166,7 +166,7 @@
     <div class="answers" id="answers"></div>
 
     <div class="actions" id="actions">
-      <button id="showBtn">Hiện kết quả</button>
+      <button id="autoBtn" title="Bật/tắt tự chuyển sang câu tiếp (phím Space)"></button>
       <button id="soundBtn" title="Nghe lại">🔊</button>
       <button id="nextBtn">Tiếp →</button>
     </div>
@@ -207,9 +207,9 @@ const SERIF_FONT = '"Times New Roman", Georgia, serif';
 
 const MODES = [
   { id: "treble", ic: "𝄞", music: true, label: "Khóa Sol",
-    desc: "Đoán tên nốt trên khóa Sol, rồi bấm “Hiện kết quả” (hoặc chọn đáp án)." },
+    desc: "Nhìn nốt trên khóa Sol và chọn tên nốt đúng." },
   { id: "bass", ic: "𝄢", music: true, label: "Khóa Fa",
-    desc: "Đoán tên nốt trên khóa Fa, rồi bấm “Hiện kết quả” (hoặc chọn đáp án)." },
+    desc: "Nhìn nốt trên khóa Fa và chọn tên nốt đúng." },
   { id: "both", ic: "𝄞𝄢", music: true, label: "Hai khóa",
     desc: "Khóa Sol và khóa Fa xuất hiện ngẫu nhiên xen kẽ." },
   { id: "chord", ic: "♬", music: true, label: "Hợp âm",
@@ -435,28 +435,42 @@ const VIEWS = {
   chord: ["chordOpts", "staff", "result", "answers", "actions", "kbd", "stats"],
 };
 const OPTS = {
-  note: ["optLedger", "optAcc", "optSound", "optAuto"], chord: ["optAcc", "optSound", "optAuto"],
-  ear: ["optAcc", "optRef", "optAuto"], sym: [],
+  note: ["optLedger", "optAcc", "optSound"], chord: ["optAcc", "optSound"],
+  ear: ["optAcc", "optRef"], sym: [],
 };
-const ALL_OPTS = ["optLedger", "optAcc", "optSound", "optAuto", "optRef"];
+const ALL_OPTS = ["optLedger", "optAcc", "optSound", "optRef"];
 
 // --- Tự chuyển sang câu tiếp sau khi hiện kết quả
 const AUTO_MS = 2000;
-let autoTimer = null;
-function clearAuto() { if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; } }
-function scheduleAuto(next) {
-  clearAuto();
-  if (!$("autoNext").checked) return;
-  const phase = state.phase;
-  $("result").insertAdjacentHTML("beforeend", '<div class="autobar" title="Tự chuyển sau 2 giây"><i></i></div>');
-  autoTimer = setTimeout(() => { autoTimer = null; if (state.phase === phase) next(); }, AUTO_MS);
+let autoOn = lsGet("opt_autoNext", true), autoTimer = null, autoPending = null;
+function stopAutoTimer() {
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  document.querySelectorAll(".autobar").forEach(b => b.remove());
+}
+function clearAuto() { stopAutoTimer(); autoPending = null; } // gọi khi sang câu mới
+function startAutoTimer() {
+  const p = autoPending;
+  if (!p || !autoOn) return;
+  stopAutoTimer();
+  $("result").insertAdjacentHTML("beforeend",
+    `<div class="autobar" title="Tự chuyển sau ${p.ms / 1000} giây"><i style="animation-duration:${p.ms}ms"></i></div>`);
+  autoTimer = setTimeout(() => { autoTimer = null; if (autoPending === p && state.phase === p.phase) p.next(); }, p.ms);
+}
+// Ghi nhận câu đã trả lời xong; nếu đang bật tự chuyển thì đếm ngược sang câu tiếp
+function scheduleAuto(next, ms = AUTO_MS) { autoPending = { next, ms, phase: state.phase }; startAutoTimer(); }
+function setAuto(on) {
+  autoOn = on; lsSet("opt_autoNext", on);
+  const b = $("autoBtn");
+  b.textContent = on ? "⏸ Dừng tự chuyển" : "▶ Tự chuyển";
+  b.classList.toggle("off", !on);
+  if (on) startAutoTimer(); else stopAutoTimer();
 }
 const HINT_ACC = " · − / + = giáng / thăng";
 const HINTS = {
-  note: "Phím tắt: Space = hiện kết quả · Enter / → = nốt tiếp · 1–7 hoặc C D E F G A B = chọn nốt · R = nghe lại",
-  ear: "Phím tắt: R = nghe lại · Space = hiện kết quả · Enter / → = câu tiếp · 1–7 hoặc C D E F G A B = chọn nốt",
-  sym: "Phím tắt: Space = hiện kết quả · Enter / → = ký hiệu tiếp · 1–4 = chọn đáp án",
-  chord: "Phím tắt: 1–4 = chọn đáp án · Space = hiện kết quả · Enter / → = hợp âm tiếp · R = nghe hợp âm",
+  note: "Phím tắt: Space = bật/tắt tự chuyển · Enter / → = nốt tiếp · 1–7 hoặc C D E F G A B = chọn nốt · R = nghe lại",
+  ear: "Phím tắt: R = nghe lại · Space = bật/tắt tự chuyển · Enter / → = câu tiếp · 1–7 hoặc C D E F G A B = chọn nốt",
+  sym: "Phím tắt: Space = bật/tắt tự chuyển · Enter / → = ký hiệu tiếp · 1–4 = chọn đáp án",
+  chord: "Phím tắt: 1–4 = chọn đáp án · Space = bật/tắt tự chuyển · Enter / → = hợp âm tiếp · R = nghe hợp âm",
 };
 function view(name) {
   state.phase = name;
@@ -763,7 +777,7 @@ function revealChord(guess) {
   });
   renderChord(); drawKeyboard(chordMidis());
   if ($("autoSound").checked) playChord();
-  scheduleAuto(newChord);
+  scheduleAuto(newChord, 3000);
 }
 
 // ===================== Chế độ ký hiệu =====================
@@ -883,6 +897,7 @@ const SYMBOLS = [
 let symBag = [];
 
 function newSymbol() {
+  clearAuto();
   if (!symBag.length) symBag = shuffle(SYMBOLS.map((_, i) => i));
   let idx = symBag.pop();
   if (state.sym && idx === state.sym.idx && symBag.length) { symBag.unshift(idx); idx = symBag.pop(); }
@@ -915,6 +930,7 @@ function revealSym(guess) {
     b.disabled = true;
     if (i === right) b.className = "right"; else if (i === guess) b.className = "wrong";
   });
+  scheduleAuto(newSymbol, 4000);
 }
 
 // ===================== Sự kiện =====================
@@ -926,22 +942,20 @@ MODES.forEach(m => {
   $("modes").appendChild(b);
 });
 const byMode = (sym, ear, note, chord) => () => (state.mode === "sym" ? sym : state.mode === "ear" ? ear : state.mode === "chord" ? chord : note)();
-$("showBtn").onclick = byMode(() => revealSym(), () => revealEar(), () => revealNote(), () => revealChord());
+$("autoBtn").onclick = () => setAuto(!autoOn);
+setAuto(autoOn);
 $("nextBtn").onclick = byMode(newSymbol, newEar, newNote, newChord);
 $("soundBtn").onclick = byMode(() => {}, playEar, () => play(midiOf(state.d, state.acc)), playChord);
 buildAccSel();
 initChordOpts();
 
 // Ghi nhớ các tùy chọn
-["ledger", "acc", "autoSound", "earRef", "autoNext"].forEach(id => {
+["ledger", "acc", "autoSound", "earRef"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
 });
 $("ledger").addEventListener("change", () => { if (state.phase === "note") newNote(); });
-$("autoNext").addEventListener("change", () => {
-  if (!$("autoNext").checked) { clearAuto(); document.querySelectorAll(".autobar").forEach(b => b.remove()); }
-});
 $("acc").addEventListener("change", () => {
   view(state.phase);
   if (state.phase === "note") newNote();
@@ -959,16 +973,16 @@ document.addEventListener("keydown", e => {
   }
   if (p === "note" || p === "ear") {
     const reveal = p === "ear" ? revealEar : revealNote;
-    if (k === " ") { e.preventDefault(); reveal(); }
+    if (k === " ") { e.preventDefault(); setAuto(!autoOn); }
     else if (k === "enter" || k === "arrowright") { e.preventDefault(); (p === "ear" ? newEar : newNote)(); }
     else if (k === "r") { p === "ear" ? playEar() : play(midiOf(state.d, state.acc)); }
     else if (noteIdx !== undefined) reveal(pick(noteIdx));
   } else if (p === "sym") {
-    if (k === " ") { e.preventDefault(); revealSym(); }
+    if (k === " ") { e.preventDefault(); setAuto(!autoOn); }
     else if (k === "enter" || k === "arrowright") { e.preventDefault(); newSymbol(); }
     else if (k >= "1" && k <= "4") revealSym(+k - 1);
   } else if (p === "chord") {
-    if (k === " ") { e.preventDefault(); revealChord(); }
+    if (k === " ") { e.preventDefault(); setAuto(!autoOn); }
     else if (k === "enter" || k === "arrowright") { e.preventDefault(); newChord(); }
     else if (k === "r") playChord();
     else if (k >= "1" && k <= "4") revealChord(+k - 1);
