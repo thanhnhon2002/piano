@@ -25,7 +25,8 @@ WEB_ONLY = """
 <script data-goatcounter="https://__GC__.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script>
 // Hiện số người đã truy cập ngay trên tiêu đề; lỗi hoặc bị chặn thì giữ ẩn
-fetch("https://__GC__.goatcounter.com/counter/TOTAL.json")
+// Số lượt của trang /piano từ đầu (TOTAL.json chỉ tính một khoảng ngắn gần đây)
+fetch("https://__GC__.goatcounter.com/counter/%2Fpiano.json")
   .then(r => r.ok ? r.json() : null)
   .then(d => {
     if (!d || d.count == null) return;
