@@ -28,7 +28,7 @@ Tùy chọn: dòng kẻ phụ, nốt thăng/giáng (♯ ♭), phát âm thanh pi
 
 ```
 PianoNoteRecognition.html        ← file hoàn chỉnh (được tạo bởi build.py), dùng để chia sẻ
-index.html                       ← chuyển hướng tới file trên (cho GitHub Pages)
+index.html                       ← bản giống hệt, là trang chính của GitHub Pages
 src/PianoNoteRecognition.src.html← mã nguồn (sửa ở đây)
 assets/NotoMusic-music.woff2     ← font ký hiệu âm nhạc
 assets/piano/*.mp3               ← mẫu âm thanh piano (3 giây/mẫu)

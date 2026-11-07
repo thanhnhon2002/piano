@@ -3,7 +3,7 @@
 Dùng:  python build.py
 Kết quả:
   PianoNoteRecognition.html  – file duy nhất để gửi cho người khác / đưa lên GitHub Pages
-  index.html                 – trang chuyển hướng tới file trên (cho GitHub Pages)
+  index.html                 – bản giống hệt, dùng làm trang chính của GitHub Pages
 """
 import base64
 import json
@@ -50,24 +50,8 @@ def main():
         raise SystemExit("Chưa nhúng được font")
 
     OUT.write_text(html, encoding="utf-8", newline="\n")
-    INDEX.write_text(
-        """<!doctype html>
-<html lang="vi">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="author" content="ThanhNhon">
-<title>Piano – Nhận diện nốt nhạc</title>
-<meta http-equiv="refresh" content="0; url=PianoNoteRecognition.html">
-</head>
-<body>
-<p><a href="PianoNoteRecognition.html">Mở Piano – Nhận diện nốt nhạc</a></p>
-</body>
-</html>
-""",
-        encoding="utf-8",
-        newline="\n",
-    )
+    # Bản web: app nằm ngay ở link gốc của GitHub Pages (link ngắn, không chuyển hướng)
+    INDEX.write_text(html, encoding="utf-8", newline="\n")
     print(f"{OUT.name}: {OUT.stat().st_size / 1024:.0f} KB, {len(samples)} mẫu piano "
           f"(midi {min(samples)}–{max(samples)})")
 
