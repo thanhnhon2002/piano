@@ -145,7 +145,7 @@
     <label class="chk" id="optLedger"><input type="checkbox" id="ledger" checked> Dòng kẻ phụ</label>
     <label class="chk" id="optAcc"><input type="checkbox" id="acc"> Thăng/giáng ♯♭</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
-    <label class="chk" id="optAuto"><input type="checkbox" id="autoNext"> Tự chuyển nốt</label>
+    <label class="chk" id="optAuto"><input type="checkbox" id="autoNext" checked> Tự chuyển nốt</label>
     <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
   </div>
   <div class="settings" id="chordOpts">
@@ -545,7 +545,7 @@ function markAnswers(rightLi, guess, guessOk) {
 
 function setMode(m) {
   clearAuto();
-  state.mode = m; lsSet("mode", m);
+  state.mode = m;
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
   $("modeDesc").textContent = MODES.find(x => x.id === m).desc;
   resetStats();
@@ -953,7 +953,7 @@ buildAccSel();
 initChordOpts();
 
 // Ghi nhớ các tùy chọn
-["ledger", "acc", "autoSound", "earRef"].forEach(id => {
+["ledger", "acc", "autoSound", "earRef", "autoNext"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
@@ -1002,8 +1002,7 @@ function rerender() {
   else if (state.phase === "chord") renderChord();
 }
 
-const startMode = lsGet("mode", "both");
-setMode(MODES.some(m => m.id === startMode) ? startMode : "both");
+setMode("treble"); // luôn mở app ở chế độ Khóa Sol
 
 // Tải font ký hiệu âm nhạc xong thì đo và vẽ lại cho chuẩn
 if (document.fonts && document.fonts.load) {
