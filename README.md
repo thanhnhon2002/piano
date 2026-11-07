@@ -32,6 +32,8 @@ Cắm đàn vào máy tính bằng cáp USB (hoặc cáp MIDI qua bộ chuyển 
 
 Chạy được trên Chrome, Edge, Opera (máy tính và Android). Safari và iPhone/iPad chưa hỗ trợ Web MIDI.
 
+Ô **Bàn phím** cho chọn cỡ bàn phím hiển thị trên màn hình theo đàn của bạn: 58 phím (mặc định, vừa đủ cho app), 25, 32, 37, 49, 61, 73, 76 hoặc 88 phím.
+
 ## Cấu trúc thư mục
 
 ```

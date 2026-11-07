@@ -112,6 +112,9 @@
   .pill { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 99px;
     padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
   .pill.on { border-color: var(--good); color: var(--good); }
+  .kbsel { display: inline-flex; align-items: center; gap: 6px; }
+  .kbsel select { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 8px;
+    padding: 6px 8px; font: inherit; }
   .midistatus { color: var(--muted); font-size: .85rem; text-align: center; }
   .midistatus.ok { color: var(--good); } .midistatus.bad { color: var(--bad); }
   .accsel { display: flex; justify-content: center; margin-top: 8px; }
@@ -159,6 +162,7 @@
   <div class="midibar" id="midiBar">
     <button class="pill" id="midiBtn">🎹 Kết nối đàn (MIDI)</button>
     <label class="chk" id="optOct"><input type="checkbox" id="midiAnyOct"> Không cần đúng quãng tám</label>
+    <label class="kbsel">Bàn phím: <select id="kbSize"></select></label>
     <span class="midistatus" id="midiStatus"></span>
   </div>
 
@@ -382,7 +386,21 @@ function bar(svg, x, cls = "", w = 0) {
 function base(svg, clef = T, clefCls = "") { drawLines(svg); drawClef(svg, clef, clefCls); }
 
 // ===================== Bàn phím piano =====================
-const KB_FROM = 11, KB_TO = 45; // G1 → E6
+// Các cỡ bàn phím phổ biến: [số phím, nốt thấp nhất, nốt cao nhất] (số MIDI, Đô giữa C4 = 60)
+const KB_SIZES = {
+  auto: { label: "58 phím (vừa đủ cho app)", lo: 31, hi: 88 }, // G1–E6
+  25: { label: "25 phím (C3–C5)", lo: 48, hi: 72 },
+  32: { label: "32 phím (F3–C6)", lo: 53, hi: 84 },
+  37: { label: "37 phím (C3–C6)", lo: 48, hi: 84 },
+  49: { label: "49 phím (C2–C6)", lo: 36, hi: 84 },
+  61: { label: "61 phím (C2–C7)", lo: 36, hi: 96 },
+  73: { label: "73 phím (E1–E7)", lo: 28, hi: 100 },
+  76: { label: "76 phím (E1–G7)", lo: 28, hi: 103 },
+  88: { label: "88 phím (A0–C8)", lo: 21, hi: 108 },
+};
+let kbSize = String(lsGet("kbSize", "auto"));
+if (!(kbSize in KB_SIZES)) kbSize = "auto";
+const isWhite = m => [0, 2, 4, 5, 7, 9, 11].includes(((m % 12) + 12) % 12);
 function drawKeyboard(hlMidis) {
   const svg = $("kbd"); svg.innerHTML = "";
   state.kbdHl = hlMidis;
@@ -390,21 +408,24 @@ function drawKeyboard(hlMidis) {
   const held = typeof midi !== "undefined" ? midi.held : new Set(); // phím đang bấm trên đàn MIDI
   const fillW = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#fff";
   const fillB = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#222";
-  const n = KB_TO - KB_FROM + 1, w = 580 / n, h = 80;
-  for (let i = 0; i < n; i++) {
-    const d = KB_FROM + i;
-    el("rect", { x: i * w, y: 0, width: w, height: h, rx: 2,
-      style: `fill:${fillW(midiOf(d))};stroke:#555;stroke-width:1` }, svg);
-    if (d % 7 === 0) {
-      const tx = el("text", { x: i * w + w / 2, y: h - 6, "text-anchor": "middle", "font-size": 8, fill: "#888" }, svg);
-      tx.textContent = "C" + (d / 7);
-    }
-  }
-  for (let i = 0; i < n - 1; i++) {
-    const li = (KB_FROM + i) % 7;
-    if (li === 2 || li === 6) continue;
-    el("rect", { x: (i + 1) * w - w * 0.3, y: 0, width: w * 0.6, height: h * 0.6, rx: 1.5,
-      style: `fill:${fillB(midiOf(KB_FROM + i) + 1)};stroke:#222;stroke-width:1` }, svg);
+  const { lo, hi } = KB_SIZES[kbSize];
+  const whites = [];
+  for (let m = lo; m <= hi; m++) if (isWhite(m)) whites.push(m);
+  const w = 580 / whites.length, h = 80, fs = Math.min(8, w * 0.75);
+  const xOf = {}; // vị trí mép trái của từng phím trắng
+  whites.forEach((m, i) => {
+    xOf[m] = i * w;
+    el("rect", { x: i * w, y: 0, width: w, height: h, rx: Math.min(2, w / 4),
+      style: `fill:${fillW(m)};stroke:#555;stroke-width:${w < 9 ? 0.6 : 1}` }, svg);
+    if (m % 12 === 0)
+      el("text", { x: i * w + w / 2, y: h - 5, "text-anchor": "middle", "font-size": fs, fill: "#888" }, svg)
+        .textContent = "C" + (m / 12 - 1);
+  });
+  for (let m = lo + 1; m < hi; m++) {
+    if (isWhite(m)) continue;
+    const x = xOf[m - 1] + w; // phím đen nằm giữa 2 phím trắng
+    el("rect", { x: x - w * 0.3, y: 0, width: w * 0.6, height: h * 0.6, rx: Math.min(1.5, w / 6),
+      style: `fill:${fillB(m)};stroke:#222;stroke-width:${w < 9 ? 0.5 : 1}` }, svg);
   }
 }
 
@@ -1259,6 +1280,8 @@ function rerender() {
 
 setMode("treble"); // luôn mở app ở chế độ Khóa Sol
 $("midiBtn").onclick = () => connectMidi(false);
+Object.entries(KB_SIZES).forEach(([k, v]) => $("kbSize").add(new Option(v.label, k, false, k === kbSize)));
+$("kbSize").onchange = () => { kbSize = $("kbSize").value; lsSet("kbSize", kbSize); drawKeyboard(state.kbdHl); };
 if (lsGet("midiOn", false)) connectMidi(true); // lần trước đã kết nối thì tự kết nối lại
 
 // Tải font ký hiệu âm nhạc xong thì đo và vẽ lại cho chuẩn
