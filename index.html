@@ -150,6 +150,7 @@
   .keys-hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
   .author { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
   .author b { color: var(--ink); }
+  .visitors { margin-top: 6px; font-weight: 600; color: var(--ink); }
   .credits { font-size: .72rem; margin-top: 4px; opacity: .8; }
 </style>
 </head>
@@ -220,6 +221,7 @@
   </div>
   <div class="keys-hint" id="hint"></div>
   <footer class="author">Tác giả: <b>ThanhNhon</b>
+    <div class="visitors" id="visitors" hidden></div>
     <div class="credits">Âm thanh: Salamander Grand Piano – Alexander Holm (CC BY 3.0) · Font: Noto Music (SIL OFL 1.1)</div>
   </footer>
 </div>
@@ -1310,6 +1312,23 @@ if (document.fonts && document.fonts.load) {
     document.fonts.load('40px "Noto Music"', "𝄞𝄢♯♭♮𝄪𝄫𝄻𝄼𝄽𝄾𝄿𝄴𝄐𝆏𝆐𝆑𝆮𝆯𝄋𝄌"),
   ]).catch(() => {}).then(() => { for (const k in inkCache) delete inkCache[k]; rerender(); });
 }
+</script>
+
+<!-- Thống kê lượt truy cập: GoatCounter (không dùng cookie) – chỉ có ở bản web -->
+<script data-goatcounter="https://nhonpiano.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<script>
+// Hiện tổng số lượt người dùng ở cuối trang; lỗi hoặc bị chặn thì giữ ẩn
+fetch("https://nhonpiano.goatcounter.com/counter/TOTAL.json")
+  .then(r => r.ok ? r.json() : null)
+  .then(d => {
+    if (!d || d.count == null) return;
+    const n = String(d.count).replace(/[^0-9]/g, "");
+    if (!n || n === "0") return;
+    const el = document.getElementById("visitors");
+    el.textContent = "👥 " + Number(n).toLocaleString("vi-VN") + " lượt người dùng";
+    el.hidden = false;
+  })
+  .catch(() => {});
 </script>
 </body>
 </html>

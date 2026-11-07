@@ -17,6 +17,28 @@ PIANO_DIR = ROOT / "assets" / "piano"
 OUT = ROOT / "PianoNoteRecognition.html"
 INDEX = ROOT / "index.html"
 
+# Thống kê lượt truy cập (GoatCounter) – CHỈ gắn vào bản web (index.html),
+# không gắn vào file PianoNoteRecognition.html dùng để gửi riêng.
+GOATCOUNTER = "nhonpiano"
+WEB_ONLY = """
+<!-- Thống kê lượt truy cập: GoatCounter (không dùng cookie) – chỉ có ở bản web -->
+<script data-goatcounter="https://__GC__.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<script>
+// Hiện tổng số lượt người dùng ở cuối trang; lỗi hoặc bị chặn thì giữ ẩn
+fetch("https://__GC__.goatcounter.com/counter/TOTAL.json")
+  .then(r => r.ok ? r.json() : null)
+  .then(d => {
+    if (!d || d.count == null) return;
+    const n = String(d.count).replace(/[^0-9]/g, "");
+    if (!n || n === "0") return;
+    const el = document.getElementById("visitors");
+    el.textContent = "👥 " + Number(n).toLocaleString("vi-VN") + " lượt người dùng";
+    el.hidden = false;
+  })
+  .catch(() => {});
+</script>
+""".replace("__GC__", GOATCOUNTER)
+
 NOTE_SEMI = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 
 
@@ -51,7 +73,9 @@ def main():
 
     OUT.write_text(html, encoding="utf-8", newline="\n")
     # Bản web: app nằm ngay ở link gốc của GitHub Pages (link ngắn, không chuyển hướng)
-    INDEX.write_text(html, encoding="utf-8", newline="\n")
+    if html.count("</body>") != 1:
+        raise SystemExit("Không tìm thấy </body> để gắn thống kê")
+    INDEX.write_text(html.replace("</body>", WEB_ONLY + "</body>"), encoding="utf-8", newline="\n")
     print(f"{OUT.name}: {OUT.stat().st_size / 1024:.0f} KB, {len(samples)} mẫu piano "
           f"(midi {min(samples)}–{max(samples)})")
 
