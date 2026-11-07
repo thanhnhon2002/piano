@@ -180,7 +180,7 @@
 
   <div class="card">
     <div class="timer" id="timerBox">
-      <span id="tLeft">10.0s</span>
+      <span id="tLeft">20.0s</span>
       <div class="progress"><i id="tFill"></i></div>
       <span id="tLevel"></span>
     </div>
@@ -234,7 +234,7 @@ const SERIF_FONT = '"Times New Roman", Georgia, serif';
 const NOTE_CLEFS = {
   treble: "Nhìn nốt trên khóa Sol và chọn tên nốt đúng.",
   bass: "Nhìn nốt trên khóa Fa và chọn tên nốt đúng.",
-  both: "Khóa Sol và khóa Fa xuất hiện ngẫu nhiên xen kẽ, có đếm giờ.",
+  both: "Khóa Sol và khóa Fa xuất hiện ngẫu nhiên xen kẽ.",
 };
 const MODES = [
   { id: "note", ic: "𝄞𝄢", music: true, label: "Học nốt", desc: "" },
@@ -525,7 +525,6 @@ function view(name) {
   if (name === "note" && !timerOn()) $("timerBox").style.display = "none";
   $("soundBtn").style.display = name === "sym" ? "none" : "";
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
-  if (state.mode !== "both") $("optTimer").style.display = "none"; // đếm giờ chỉ có ở chế độ Hai khóa
   $("noteOpts").style.display = OPTS[name].length ? "" : "none";
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
 }
@@ -609,12 +608,12 @@ function setMode(m) {
 state.noteMax = Math.min(5, Math.max(1, +lsGet("noteMax", 1) || 1));
 state.notes = []; state.idx = 0;
 
-// Đếm giờ (chỉ ở Hai khóa): bắt đầu 10 giây/nốt, đúng hết bớt 0,5 giây, tối thiểu 1 giây.
+// Đếm giờ (Khóa Sol / Khóa Fa / Hai khóa): bắt đầu 20 giây/nốt, đúng hết bớt 0,5 giây, tối thiểu 1 giây.
 // Khuông có từ 2 nốt trở lên: thời gian = thời gian 1 nốt × số nốt × 80%.
-const T_MAX = 10, T_MIN = 1, T_STEP = 0.5, MULTI_FACTOR = 0.8;
+const T_MAX = 20, T_MIN = 1, T_STEP = 0.5, MULTI_FACTOR = 0.8;
 state.tLimit = T_MAX;
 let qTimer = null;
-const timerOn = () => state.mode === "both" && $("timer").checked;
+const timerOn = () => state.mode in NOTE_CLEFS && $("timer").checked;
 const fmtSec = v => { const r = Math.round(v * 10) / 10; return (Number.isInteger(r) ? r : r.toFixed(1)) + "s"; };
 const screenLimit = (n = state.notes.length) => n > 1 ? state.tLimit * n * MULTI_FACTOR : state.tLimit;
 function stopQTimer() { if (qTimer) { clearInterval(qTimer); qTimer = null; } }
@@ -725,7 +724,7 @@ function revealNote(guess, timeout) {
       renderTimer(left, `Tiếp theo: ${fmtSec(state.tLimit)}/nốt ⬇`);
     } else if (allRight) {
       renderTimer(left, "Mức nhanh nhất: 1s/nốt 🔥");
-    } else if (answered || timeout) { // sai hoặc hết giờ: quay về 10 giây
+    } else if (answered || timeout) { // sai hoặc hết giờ: quay về mức đầu (T_MAX)
       const was = state.tLimit;
       state.tLimit = T_MAX;
       renderTimer(left, was < T_MAX ? `Sai: về lại ${fmtSec(T_MAX)}/nốt ↺` : undefined);
