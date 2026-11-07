@@ -86,7 +86,7 @@
   #staff .lbl.good { fill: var(--good); } #staff .lbl.bad { fill: var(--bad); }
 
   .result {
-    min-height: 64px; display: flex; flex-direction: column; align-items: center;
+    min-height: 96px; display: flex; flex-direction: column; align-items: center;
     justify-content: center; margin: 8px 0 4px; text-align: center;
   }
   .result .big { font-size: 1.8rem; font-weight: 700; }
@@ -763,7 +763,7 @@ function renderNote() {
   svg.innerHTML = "";
   drawLines(svg); drawClef(svg, state.clef);
   if (state.key) drawKeySig(svg, state.clef, state.key);
-  const tops = [], bottoms = [], marks = [];
+  const marks = [];
   notes.forEach((it, j) => {
     const x = xs[j], cur = n > 1 && !state.revealed && j === state.idx;
     let cls = "";
@@ -782,12 +782,16 @@ function renderNote() {
       el("line", { x1: x + 13, x2: x + 22, y1: ly, y2: ly, class: "s " + cls, "stroke-dasharray": "2 2", "stroke-width": 1.2 }, svg);
       el("line", { x1: x + 22, x2: x + 22, y1: ly, y2: ly + (disp.ott > 0 ? 6 : -6), class: "s " + cls, "stroke-width": 1.2 }, svg);
     }
-    tops.push(y - 3.5 * S - 22); bottoms.push(y + 3.5 * S + 22);
     marks.push({ x, cur, it });
   });
   // Tự giãn khung khuông nhạc khi có nốt rất cao / rất thấp (nhiều dòng kẻ phụ)
-  const top = Math.min(0, ...tops), labelY = Math.max(199, ...bottoms.map(v => v - 4));
-  const bottom = Math.max(215, n > 1 ? labelY + 16 : Math.max(...bottoms));
+  // Khung khuông nhạc CỐ ĐỊNH theo cài đặt (số dòng kẻ phụ, 8va/8vb, số nốt tối đa) chứ không theo nốt
+  // đang hiện, để các nút bên dưới không bị nhảy vị trí khi bấm "Tiếp" liên tục.
+  const k = ledgerCount(), kEff = $("ottava").checked && k >= OTT_FROM ? OTT_FROM - 1 : k;
+  const b0 = CLEFS[state.clef].bottom;
+  const yHi = yOf(b0 + 9 + 2 * kEff, state.clef), yLo = yOf(b0 - 1 - 2 * kEff, state.clef);
+  const top = Math.min(0, yHi - 40), labelY = Math.max(199, yLo + 34);
+  const bottom = state.noteMax > 1 ? labelY + 16 : Math.max(215, yLo + 3.5 * S + 6);
   svg.setAttribute("viewBox", `0 ${top} 360 ${bottom - top}`);
   marks.forEach(({ x, cur, it }) => {
     if (cur) el("path", { d: `M${x - 6} ${top + 4} L${x + 6} ${top + 4} L${x} ${top + 12} Z`, class: "f hl" }, svg);
