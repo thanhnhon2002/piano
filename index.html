@@ -150,13 +150,16 @@
   .keys-hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
   .author { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
   .author b { color: var(--ink); }
-  .visitors { margin-top: 6px; font-weight: 600; color: var(--ink); }
+  .appname { white-space: nowrap; }
+  .visitors { font-size: .62em; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .visitors[hidden] { display: none !important; }
+  @media (max-width: 480px) { .visitors { display: block; margin-top: 2px; } .visitors .sep { display: none; } }
   .credits { font-size: .72rem; margin-top: 4px; opacity: .8; }
 </style>
 </head>
 <body>
 <div class="app">
-  <h1>🎹 Học Piano</h1>
+  <h1><span class="appname">🎹 Học Piano</span><span class="visitors" id="visitors" hidden></span></h1>
 
   <nav class="modes" id="modes"></nav>
   <p class="sub" id="modeDesc"></p>
@@ -221,7 +224,6 @@
   </div>
   <div class="keys-hint" id="hint"></div>
   <footer class="author">Tác giả: <b>ThanhNhon</b>
-    <div class="visitors" id="visitors" hidden></div>
     <div class="credits">Âm thanh: Salamander Grand Piano – Alexander Holm (CC BY 3.0) · Font: Noto Music (SIL OFL 1.1)</div>
   </footer>
 </div>
@@ -1317,7 +1319,7 @@ if (document.fonts && document.fonts.load) {
 <!-- Thống kê lượt truy cập: GoatCounter (không dùng cookie) – chỉ có ở bản web -->
 <script data-goatcounter="https://nhonpiano.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script>
-// Hiện tổng số lượt người dùng ở cuối trang; lỗi hoặc bị chặn thì giữ ẩn
+// Hiện số người đã truy cập ngay trên tiêu đề; lỗi hoặc bị chặn thì giữ ẩn
 fetch("https://nhonpiano.goatcounter.com/counter/TOTAL.json")
   .then(r => r.ok ? r.json() : null)
   .then(d => {
@@ -1325,7 +1327,7 @@ fetch("https://nhonpiano.goatcounter.com/counter/TOTAL.json")
     const n = String(d.count).replace(/[^0-9]/g, "");
     if (!n || n === "0") return;
     const el = document.getElementById("visitors");
-    el.textContent = "👥 " + Number(n).toLocaleString("vi-VN") + " lượt người dùng";
+    el.innerHTML = '<span class="sep"> – </span>' + Number(n).toLocaleString("vi-VN") + " người đã truy cập";
     el.hidden = false;
   })
   .catch(() => {});

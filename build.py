@@ -24,7 +24,7 @@ WEB_ONLY = """
 <!-- Thống kê lượt truy cập: GoatCounter (không dùng cookie) – chỉ có ở bản web -->
 <script data-goatcounter="https://__GC__.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script>
-// Hiện tổng số lượt người dùng ở cuối trang; lỗi hoặc bị chặn thì giữ ẩn
+// Hiện số người đã truy cập ngay trên tiêu đề; lỗi hoặc bị chặn thì giữ ẩn
 fetch("https://__GC__.goatcounter.com/counter/TOTAL.json")
   .then(r => r.ok ? r.json() : null)
   .then(d => {
@@ -32,7 +32,7 @@ fetch("https://__GC__.goatcounter.com/counter/TOTAL.json")
     const n = String(d.count).replace(/[^0-9]/g, "");
     if (!n || n === "0") return;
     const el = document.getElementById("visitors");
-    el.textContent = "👥 " + Number(n).toLocaleString("vi-VN") + " lượt người dùng";
+    el.innerHTML = '<span class="sep"> – </span>' + Number(n).toLocaleString("vi-VN") + " người đã truy cập";
     el.hidden = false;
   })
   .catch(() => {});

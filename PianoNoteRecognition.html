@@ -150,13 +150,16 @@
   .keys-hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
   .author { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
   .author b { color: var(--ink); }
-  .visitors { margin-top: 6px; font-weight: 600; color: var(--ink); }
+  .appname { white-space: nowrap; }
+  .visitors { font-size: .62em; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .visitors[hidden] { display: none !important; }
+  @media (max-width: 480px) { .visitors { display: block; margin-top: 2px; } .visitors .sep { display: none; } }
   .credits { font-size: .72rem; margin-top: 4px; opacity: .8; }
 </style>
 </head>
 <body>
 <div class="app">
-  <h1>🎹 Học Piano</h1>
+  <h1><span class="appname">🎹 Học Piano</span><span class="visitors" id="visitors" hidden></span></h1>
 
   <nav class="modes" id="modes"></nav>
   <p class="sub" id="modeDesc"></p>
@@ -221,7 +224,6 @@
   </div>
   <div class="keys-hint" id="hint"></div>
   <footer class="author">Tác giả: <b>ThanhNhon</b>
-    <div class="visitors" id="visitors" hidden></div>
     <div class="credits">Âm thanh: Salamander Grand Piano – Alexander Holm (CC BY 3.0) · Font: Noto Music (SIL OFL 1.1)</div>
   </footer>
 </div>
