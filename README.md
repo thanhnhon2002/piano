@@ -1,4 +1,4 @@
-# 🎹 Piano – Nhận diện nốt nhạc
+# 🎹 Học Piano
 
 Ứng dụng web luyện đọc nốt nhạc piano. Toàn bộ app nằm trong **một file HTML**, mở bằng trình duyệt là dùng được, không cần cài đặt và không cần Internet.
 
