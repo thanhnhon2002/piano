@@ -115,6 +115,8 @@
   .kbsel { display: inline-flex; align-items: center; gap: 6px; }
   .kbsel select { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 8px;
     padding: 6px 8px; font: inherit; }
+  .ledsel select { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 8px;
+    padding: 4px 6px; font: inherit; }
   .midistatus { color: var(--muted); font-size: .85rem; text-align: center; }
   .midistatus.ok { color: var(--good); } .midistatus.bad { color: var(--bad); }
   .accsel { display: flex; justify-content: center; margin-top: 8px; }
@@ -171,7 +173,7 @@
   </div>
 
   <div class="settings" id="noteOpts">
-    <label class="chk" id="optLedger"><input type="checkbox" id="ledger" checked> Dòng kẻ phụ</label>
+    <span class="chk ledsel" id="optLedger">Dòng kẻ phụ: <select id="ledger" title="Số dòng kẻ phụ phía trên và phía dưới khuông"></select></span>
     <label class="chk" id="optAcc"><input type="checkbox" id="acc"> Thăng/giáng ♯♭</label>
     <label class="chk" id="optTimer"><input type="checkbox" id="timer"> ⏱ Đếm giờ</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
@@ -237,8 +239,8 @@ const LETTER_KEY = { c: 0, d: 1, e: 2, f: 3, g: 4, a: 5, b: 6 };
 
 // Chỉ số nốt (diatonic): quãng tám*7 + vị trí chữ (C4 = 28)
 const CLEFS = {
-  treble: { bottom: 30 /*E4*/, basic: [29, 39] /*D4–G5*/, ledger: [26, 44] /*A3–D6*/ },
-  bass:   { bottom: 18 /*G2*/, basic: [17, 27] /*F2–B3*/, ledger: [12, 30] /*A1–E4*/ },
+  treble: { bottom: 30 /*dòng 1 = Mi4 (E4)*/ },
+  bass:   { bottom: 18 /*dòng 1 = Sol2 (G2)*/ },
 };
 const T = "treble", B = "bass";
 
@@ -577,7 +579,14 @@ function score(right) {
   if (right) { state.good++; state.streak++; } else { state.bad++; state.streak = 0; }
   updateStats();
 }
-function noteRange(clef) { return $("ledger").checked ? CLEFS[clef].ledger : CLEFS[clef].basic; }
+// Khoảng nốt theo số dòng kẻ phụ (dùng chung cho phía trên và phía dưới khuông).
+// 0 dòng: từ khe ngay dưới dòng 1 đến khe ngay trên dòng 5; mỗi dòng kẻ phụ thêm 2 bậc (dòng + khe ngoài nó).
+const LEDGER_MAX = 3;
+const ledgerCount = () => Math.min(LEDGER_MAX, Math.max(0, +$("ledger").value || 0));
+function noteRange(clef) {
+  const b = CLEFS[clef].bottom, t = b + 8, k = ledgerCount();
+  return [b - 1 - 2 * k, t + 1 + 2 * k];
+}
 function randNote(clef, avoid) {
   const [lo, hi] = noteRange(clef); let d, acc;
   do { d = lo + rnd(hi - lo + 1); acc = randAcc(d, 0.45); }
@@ -1256,12 +1265,15 @@ buildAccSel();
 initChordOpts();
 
 // Ghi nhớ các tùy chọn
-["ledger", "acc", "autoSound", "earRef", "timer", "midiAnyOct"].forEach(id => {
+// Số dòng kẻ phụ (0–3, mặc định 2)
+for (let i = 0; i <= LEDGER_MAX; i++) $("ledger").add(new Option(String(i), String(i)));
+$("ledger").value = String(Math.min(LEDGER_MAX, Math.max(0, +lsGet("opt_ledgerN", 2) || 0)));
+$("ledger").addEventListener("change", () => { lsSet("opt_ledgerN", +$("ledger").value); if (state.phase === "note") newNote(); });
+["acc", "autoSound", "earRef", "timer", "midiAnyOct"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
 });
-$("ledger").addEventListener("change", () => { if (state.phase === "note") newNote(); });
 $("acc").addEventListener("change", () => {
   view(state.phase);
   if (state.phase === "note") newNote();
