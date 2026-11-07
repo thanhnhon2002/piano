@@ -106,6 +106,8 @@
   .timer.low #tLeft { color: var(--bad); }
   .timer.low .progress i { background: var(--bad); }
   #noteClef .music { margin-right: 4px; }
+  .segwrap { display: inline-flex; align-items: center; gap: 8px; }
+  #noteMax button { padding: 8px 11px; }
   .accsel { display: flex; justify-content: center; margin-top: 8px; }
   .accsel .seg button { padding: 7px 14px; font-weight: 600; }
   .answers { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 10px 0; }
@@ -160,6 +162,11 @@
     <div class="seg" id="noteClef">
       <button data-v="treble"><span class="music">𝄞</span>Khóa Sol</button><button data-v="bass"><span class="music">𝄢</span>Khóa Fa</button><button data-v="both"><span class="music">𝄞𝄢</span>Hai khóa</button>
     </div>
+    <span class="segwrap">Tối đa:
+      <span class="seg" id="noteMax">
+        <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button>
+      </span> nốt
+    </span>
   </div>
   <div class="settings" id="chordOpts">
     <div class="seg" id="chordClef">
@@ -573,22 +580,29 @@ function setMode(m) {
   if (m === "sym") { view("sym"); return newSymbol(); }
   if (m === "ear") { view("ear"); buildNoteAnswers(g => revealEar(g)); return newEar(); }
   view("note");
-  buildNoteAnswers(g => revealNote(g));
+  buildNoteAnswers(g => answerNote(g));
   newNote();
 }
 
 // ===================== Chế độ đoán nốt (Sol / Fa / Hai khóa) =====================
-// Đếm giờ (chỉ ở Hai khóa): bắt đầu 10 giây/nốt, mỗi câu đúng bớt 0,5 giây, tối thiểu 1 giây
-const T_MAX = 10, T_MIN = 1, T_STEP = 0.5;
+// Mỗi lượt hiện ngẫu nhiên 1..noteMax nốt; trả lời lần lượt từ trái sang phải.
+state.noteMax = Math.min(5, Math.max(1, +lsGet("noteMax", 1) || 1));
+state.notes = []; state.idx = 0;
+
+// Đếm giờ (chỉ ở Hai khóa): bắt đầu 10 giây/nốt, đúng hết bớt 0,5 giây, tối thiểu 1 giây.
+// Khuông có từ 2 nốt trở lên: thời gian = thời gian 1 nốt × số nốt × 80%.
+const T_MAX = 10, T_MIN = 1, T_STEP = 0.5, MULTI_FACTOR = 0.8;
 state.tLimit = T_MAX;
 let qTimer = null;
 const timerOn = () => state.mode === "both" && $("timer").checked;
-const fmtSec = v => (Number.isInteger(v) ? v : v.toFixed(1)) + "s";
+const fmtSec = v => { const r = Math.round(v * 10) / 10; return (Number.isInteger(r) ? r : r.toFixed(1)) + "s"; };
+const screenLimit = (n = state.notes.length) => n > 1 ? state.tLimit * n * MULTI_FACTOR : state.tLimit;
 function stopQTimer() { if (qTimer) { clearInterval(qTimer); qTimer = null; } }
 function startQTimer() {
   stopQTimer();
   if (!timerOn()) return;
-  state.tEnd = performance.now() + state.tLimit * 1000;
+  state.qLimit = screenLimit();
+  state.tEnd = performance.now() + state.qLimit * 1000;
   tickQ();
   qTimer = setInterval(tickQ, 100);
 }
@@ -597,61 +611,128 @@ function tickQ() {
   renderTimer(left);
   if (left <= 0) { stopQTimer(); revealNote(null, true); }
 }
-function renderTimer(left, levelText) {
-  $("tLeft").textContent = left.toFixed(1) + "s";
-  $("tFill").style.width = (left / state.tLimit * 100) + "%";
-  $("timerBox").classList.toggle("low", left <= Math.max(1, state.tLimit * 0.3));
-  $("tLevel").textContent = levelText || `Mức: ${fmtSec(state.tLimit)} / nốt`;
+function levelText() {
+  const n = state.notes.length;
+  return n > 1
+    ? `Mức: ${fmtSec(state.tLimit)}/nốt · ${n} nốt = ${fmtSec(screenLimit())}`
+    : `Mức: ${fmtSec(state.tLimit)} / nốt`;
 }
+function renderTimer(left, text) {
+  $("tLeft").textContent = left.toFixed(1) + "s";
+  $("tFill").style.width = (left / state.qLimit * 100) + "%";
+  $("timerBox").classList.toggle("low", left <= Math.max(1, state.qLimit * 0.3));
+  $("tLevel").textContent = text || levelText();
+}
+
+const noteRight = it => !!it.ans && it.ans.li === it.d % 7 && it.ans.acc === it.acc;
+const noteXs = n => n === 1 ? [NOTE_X] : Array.from({ length: n }, (_, i) => 214 + (i - (n - 1) / 2) * (n === 5 ? 52 : 60));
 function renderNote() {
-  const svg = $("staff"); svg.innerHTML = "";
+  const svg = $("staff"), notes = state.notes, n = notes.length, xs = noteXs(n);
+  svg.innerHTML = "";
   drawLines(svg); drawClef(svg, state.clef);
-  drawNote(svg, NOTE_X, state.d, state.clef, { cls: state.revealed ? "good" : "", acc: state.acc });
+  const lastAcc = {}; // dấu hóa còn hiệu lực trên khuông → thêm dấu bình ♮ khi cần
+  notes.forEach((it, j) => {
+    const x = xs[j], cur = n > 1 && !state.revealed && j === state.idx;
+    let cls = "";
+    if (it.ans) cls = noteRight(it) ? "good" : "bad";
+    else if (state.revealed) cls = n === 1 ? "good" : "dim";
+    else if (cur) cls = "hl";
+    const natural = it.acc === 0 && !!lastAcc[it.d];
+    lastAcc[it.d] = it.acc;
+    drawNote(svg, x, it.d, state.clef, { cls, acc: it.acc, natural });
+    if (cur) el("path", { d: `M${x - 6} 14 L${x + 6} 14 L${x} 22 Z`, class: "f hl" }, svg);
+    if (n > 1 && (it.ans || state.revealed)) {
+      const ok = noteRight(it), name = nameOf(it.d, it.acc).vi;
+      el("text", { x, y: 199, class: "lbl " + (it.ans ? (ok ? "good" : "bad") : "") }, svg)
+        .textContent = it.ans ? label(it.ans) : "—";
+      if (state.revealed && !ok) el("text", { x, y: 213, class: "lbl good" }, svg).textContent = "→ " + name;
+    }
+  });
 }
 function newNote() {
-  const prevClef = state.clef, prev = { d: state.d, acc: state.acc };
+  const prevClef = state.clef, prevLast = state.notes[state.notes.length - 1];
   state.clef = state.mode === "both" ? (Math.random() < 0.5 ? T : B) : state.mode;
-  const r = randNote(state.clef, state.clef === prevClef ? prev : null);
-  state.d = r.d; state.acc = r.acc;
-  state.revealed = false; clearAuto();
-  $("result").innerHTML = '<span class="hint">Nốt này là nốt gì?</span>';
+  const count = 1 + rnd(state.noteMax);
+  let avoid = state.clef === prevClef && prevLast ? prevLast : null;
+  state.notes = [];
+  for (let i = 0; i < count; i++) {
+    const r = randNote(state.clef, avoid);
+    state.notes.push({ d: r.d, acc: r.acc, ans: null });
+    avoid = r;
+  }
+  state.idx = 0; state.revealed = false; clearAuto();
+  $("result").innerHTML = count === 1
+    ? '<span class="hint">Nốt này là nốt gì?</span>'
+    : `<span class="hint">Đọc lần lượt ${count} nốt từ trái sang phải</span>`;
   resetAnswerButtons();
   renderNote(); drawKeyboard(null);
   startQTimer();
+}
+const noteMidis = () => state.notes.map(it => midiOf(it.d, it.acc));
+const playNotes = () => playSeq(noteMidis().map((m, i) => [m, i * 0.4]));
+
+// Bấm một đáp án: 1 nốt thì hiện kết quả ngay; nhiều nốt thì ghi nhận rồi sang nốt kế tiếp
+function answerNote(g) {
+  if (state.revealed || state.phase !== "note") return;
+  if (state.notes.length === 1) return revealNote(g);
+  const it = state.notes[state.idx];
+  it.ans = g;
+  const b = $("answers").children[g.li];
+  b.className = noteRight(it) ? "right" : "wrong";
+  setTimeout(() => { if (!state.revealed) b.className = ""; }, 250);
+  setAccSel(0);
+  state.idx++;
+  if (state.idx >= state.notes.length) revealNote();
+  else renderNote();
 }
 function revealNote(guess, timeout) {
   if (state.revealed) return;
   state.revealed = true;
   stopQTimer();
-  const n = nameOf(state.d, state.acc);
-  let verdict = "", right = false;
-  if (guess) {
-    right = guess.li === n.li && guess.acc === state.acc; score(right);
-    verdict = right ? '<span class="ok">✔ Chính xác!</span> ' : '<span class="no">✘ Chưa đúng.</span> ';
-  } else if (timeout) {
-    score(false);
-    verdict = '<span class="no">⏰ Hết giờ!</span> ';
-  }
+  const notes = state.notes, n = notes.length;
+  if (n === 1 && guess) notes[0].ans = guess;
+  let good = 0;
+  notes.forEach(it => {
+    if (it.ans) { const ok = noteRight(it); score(ok); if (ok) good++; }
+    else if (timeout) score(false);
+  });
+  const allRight = good === n, answered = notes.some(it => it.ans);
+
   if (timerOn()) {
     const left = Math.max(0, (state.tEnd - performance.now()) / 1000);
-    if (right && state.tLimit > T_MIN) {
+    if (allRight && state.tLimit > T_MIN) {
       state.tLimit = Math.max(T_MIN, state.tLimit - T_STEP);
-      renderTimer(left, `Nốt tiếp: ${fmtSec(state.tLimit)} ⬇`);
-    } else if (right) {
-      renderTimer(left, "Mức nhanh nhất: 1s 🔥");
-    } else if (guess || timeout) { // sai hoặc hết giờ: quay về 10 giây
+      renderTimer(left, `Tiếp theo: ${fmtSec(state.tLimit)}/nốt ⬇`);
+    } else if (allRight) {
+      renderTimer(left, "Mức nhanh nhất: 1s/nốt 🔥");
+    } else if (answered || timeout) { // sai hoặc hết giờ: quay về 10 giây
       const was = state.tLimit;
       state.tLimit = T_MAX;
-      renderTimer(left, was < T_MAX ? `Sai: về lại ${fmtSec(T_MAX)} ↺` : undefined);
+      renderTimer(left, was < T_MAX ? `Sai: về lại ${fmtSec(T_MAX)}/nốt ↺` : undefined);
     }
   }
-  $("result").innerHTML = `<div class="big">${verdict}${n.vi} <span class="small">(${n.en})</span></div>` +
-    `<div class="small">${state.clef === T ? "khóa Sol" : "khóa Fa"}${guess && !right ? ` · bạn chọn ${label(guess)}` : ""}</div>`;
-  setAccSel(state.acc);
-  markAnswers(n.li, guess, right);
-  renderNote(); drawKeyboard(midiOf(state.d, state.acc));
-  if ($("autoSound").checked) play(midiOf(state.d, state.acc));
-  scheduleAuto(newNote);
+
+  const clefTxt = state.clef === T ? "khóa Sol" : "khóa Fa";
+  if (n === 1) {
+    const it = notes[0], nm = nameOf(it.d, it.acc), right = noteRight(it);
+    const verdict = guess ? (right ? '<span class="ok">✔ Chính xác!</span> ' : '<span class="no">✘ Chưa đúng.</span> ')
+      : timeout ? '<span class="no">⏰ Hết giờ!</span> ' : "";
+    $("result").innerHTML = `<div class="big">${verdict}${nm.vi} <span class="small">(${nm.en})</span></div>` +
+      `<div class="small">${clefTxt}${guess && !right ? ` · bạn chọn ${label(guess)}` : ""}</div>`;
+    setAccSel(it.acc);
+    markAnswers(nm.li, guess, right);
+  } else {
+    const head = timeout ? '<span class="no">⏰ Hết giờ!</span> '
+      : allRight ? '<span class="ok">✔ Đúng hết!</span> ' : "";
+    const names = notes.map(it => `<span class="${noteRight(it) ? "ok" : "no"}">${nameOf(it.d, it.acc).vi}</span>`).join(" – ");
+    $("result").innerHTML = `<div class="big">${head}${good}/${n} <span class="small">nốt đúng</span></div>` +
+      `<div class="small">${names} · ${clefTxt}</div>`;
+    document.querySelectorAll("#answers button").forEach(b => { b.className = ""; b.disabled = true; });
+    setAccSel(0);
+  }
+  renderNote(); drawKeyboard(noteMidis());
+  if ($("autoSound").checked) playNotes();
+  scheduleAuto(newNote, allRight ? AUTO_MS : 2500); // sai / hết giờ: chờ 2,5 giây để xem đáp án
 }
 
 // ===================== Chế độ luyện nghe =====================
@@ -1013,10 +1094,11 @@ MODES.forEach(m => {
 const byMode = (sym, ear, note, chord) => () => (state.mode === "sym" ? sym : state.mode === "ear" ? ear : state.mode === "chord" ? chord : note)();
 $("autoBtn").onclick = () => setAuto(!autoOn);
 document.querySelectorAll("#noteClef button").forEach(b => b.onclick = () => setMode(b.dataset.v));
+setupSeg("noteMax", state.noteMax, v => { state.noteMax = +v; lsSet("noteMax", state.noteMax); if (state.phase === "note") newNote(); });
 $("timer").addEventListener("change", () => { state.tLimit = T_MAX; view(state.phase); if (state.phase === "note") newNote(); });
 setAuto(autoOn);
 $("nextBtn").onclick = byMode(newSymbol, newEar, newNote, newChord);
-$("soundBtn").onclick = byMode(() => {}, playEar, () => play(midiOf(state.d, state.acc)), playChord);
+$("soundBtn").onclick = byMode(() => {}, playEar, playNotes, playChord);
 buildAccSel();
 initChordOpts();
 
@@ -1043,10 +1125,10 @@ document.addEventListener("keydown", e => {
     if (v !== null) { e.preventDefault(); setAccSel(state.accSel === v ? 0 : v); return; }
   }
   if (p === "note" || p === "ear") {
-    const reveal = p === "ear" ? revealEar : revealNote;
+    const reveal = p === "ear" ? revealEar : answerNote;
     if (k === " ") { e.preventDefault(); setAuto(!autoOn); }
     else if (k === "enter" || k === "arrowright") { e.preventDefault(); (p === "ear" ? newEar : newNote)(); }
-    else if (k === "r") { p === "ear" ? playEar() : play(midiOf(state.d, state.acc)); }
+    else if (k === "r") { p === "ear" ? playEar() : playNotes(); }
     else if (noteIdx !== undefined) reveal(pick(noteIdx));
   } else if (p === "sym") {
     if (k === " ") { e.preventDefault(); setAuto(!autoOn); }

@@ -8,7 +8,7 @@
 
 | Chế độ | Nội dung |
 |---|---|
-| 𝄞𝄢 Học nốt | Đoán tên nốt, chọn **Khóa Sol**, **Khóa Fa** hoặc **Hai khóa** (xen kẽ ngẫu nhiên, có đếm giờ: bắt đầu 10 giây/nốt, đúng thì bớt 0,5 giây (tối thiểu 1 giây), sai hoặc hết giờ thì về lại 10 giây) |
+| 𝄞𝄢 Học nốt | Đoán tên nốt, chọn **Khóa Sol**, **Khóa Fa** hoặc **Hai khóa** (xen kẽ ngẫu nhiên, có đếm giờ). Chọn **tối đa 1–5 nốt**: mỗi lượt hiện ngẫu nhiên từ 1 đến số đó, đọc lần lượt từ trái sang phải. Đếm giờ: bắt đầu 10 giây/nốt, đúng hết bớt 0,5 giây (tối thiểu 1 giây), sai hoặc hết giờ về lại 10 giây; khuông từ 2 nốt trở lên có thời gian = thời gian 1 nốt × số nốt × 80% |
 | ♬ Hợp âm | Nhận biết hợp âm trưởng, thứ, giảm, tăng, hợp âm 7 và các thể đảo |
 | 🎧 Luyện nghe | Nghe nốt Đô chuẩn rồi nốt bí ẩn, đoán tên nốt |
 | ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |
