@@ -1,0 +1,47 @@
+# 🎹 Piano – Nhận diện nốt nhạc
+
+Ứng dụng web luyện đọc nốt nhạc piano. Toàn bộ app nằm trong **một file HTML**, mở bằng trình duyệt là dùng được, không cần cài đặt và không cần Internet.
+
+**Tác giả:** ThanhNhon
+
+## Các chế độ học
+
+| Chế độ | Nội dung |
+|---|---|
+| 𝄞 Khóa Sol | Đoán tên nốt trên khóa Sol |
+| 𝄢 Khóa Fa | Đoán tên nốt trên khóa Fa |
+| 𝄞𝄢 Hai khóa | Khóa Sol và khóa Fa ngẫu nhiên xen kẽ |
+| ⏱ Liên tục | Nốt xuất hiện liên tục, chấm điểm khi hoàn thành, lưu kỷ lục |
+| 🎧 Luyện nghe | Nghe nốt Đô chuẩn rồi nốt bí ẩn, đoán tên nốt |
+| ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |
+
+Tùy chọn: dòng kẻ phụ, nốt thăng/giáng (♯ ♭), phát âm thanh piano thật.
+
+**Phím tắt:**
+- `1`–`7` hoặc `C D E F G A B`: chọn nốt
+- `−` / `+`: chọn giáng / thăng
+- `Space`: hiện kết quả
+- `Enter`: sang câu tiếp
+- `R`: nghe lại
+
+## Cấu trúc thư mục
+
+```
+PianoNoteRecognition.html        ← file hoàn chỉnh (được tạo bởi build.py), dùng để chia sẻ
+index.html                       ← chuyển hướng tới file trên (cho GitHub Pages)
+src/PianoNoteRecognition.src.html← mã nguồn (sửa ở đây)
+assets/NotoMusic-music.woff2     ← font ký hiệu âm nhạc
+assets/piano/*.mp3               ← mẫu âm thanh piano (3 giây/mẫu)
+build.py                         ← nhúng font + âm thanh vào một file HTML
+```
+
+Sau khi sửa `src/`, chạy lệnh:
+
+```
+python build.py
+```
+
+## Ghi nhận
+
+- Âm thanh piano: [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) của Alexander Holm, giấy phép [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Bản MP3 lấy từ bộ mẫu của Tone.js; ở đây được cắt còn 3 giây đầu mỗi mẫu.
+- Font ký hiệu âm nhạc: [Noto Music](https://fonts.google.com/noto/specimen/Noto+Music), giấy phép [SIL Open Font License 1.1](https://openfontlicense.org).
