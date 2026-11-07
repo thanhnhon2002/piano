@@ -126,29 +126,6 @@
 
   #kbd { width: 100%; height: auto; display: block; margin-top: 10px; }
 
-  /* Luyện liên tục */
-  .runbar { display: flex; align-items: center; gap: 10px; font-weight: 600; padding: 4px 4px 0; }
-  .progress { flex: 1; height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
-  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-  .panel { padding: 8px 6px; text-align: center; }
-  .panel h2 { margin: 6px 0; font-size: 1.25rem; }
-  .panel p { color: var(--muted); margin: 0 0 14px; }
-  .panel .row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
-  .panel .primary { width: 100%; margin-top: 14px; }
-  .best { color: var(--muted); margin-top: 10px; font-size: .9rem; }
-  .score { font-size: 3rem; font-weight: 800; margin: 4px 0 0; }
-  .score-sub { color: var(--muted); margin-bottom: 8px; }
-  .record { color: var(--good); font-weight: 700; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 12px 0; }
-  .chip {
-    border-radius: 99px; padding: 4px 10px; font-size: .85rem; border: 1px solid var(--border);
-  }
-  .chip.ok { border-color: var(--good); color: var(--good); }
-  .chip.no { border-color: var(--bad); color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, transparent); }
-  .chip s { opacity: .7; }
-  .btnrow { display: flex; gap: 10px; }
-  .btnrow .primary { margin-top: 6px; }
-
   .stats { display: flex; justify-content: center; gap: 18px; margin: 14px 0 6px; color: var(--muted); }
   .stats b { color: var(--ink); }
   .keys-hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
@@ -171,35 +148,18 @@
     <label class="chk" id="optAuto"><input type="checkbox" id="autoNext"> Tự chuyển nốt</label>
     <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
   </div>
+  <div class="settings" id="chordOpts">
+    <div class="seg" id="chordClef">
+      <button data-v="treble">Khóa Sol</button><button data-v="bass">Khóa Fa</button><button data-v="both">Cả hai</button>
+    </div>
+    <div class="seg" id="chordLevel">
+      <button data-v="1">Trưởng · Thứ</button><button data-v="2">+ Giảm · Tăng</button><button data-v="3">+ Hợp âm 7</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="inv"> Thể đảo</label>
+  </div>
 
   <div class="card">
-    <div class="runbar" id="runBar">
-      <span id="runProg">1/20</span>
-      <div class="progress"><i id="runFill"></i></div>
-      <span id="runTime">0:00</span>
-    </div>
-
     <svg id="staff" viewBox="0 0 360 215" role="img" aria-label="Khuông nhạc"></svg>
-
-    <div class="panel" id="setup">
-      <h2>⏱ Luyện liên tục</h2>
-      <p>Các nốt hiện liên tiếp trên khuông nhạc. Chọn tên từng nốt thật nhanh, hết lượt sẽ chấm điểm.</p>
-      <div class="row"><span>Khóa:</span>
-        <div class="seg" id="runClef">
-          <button data-v="treble">Khóa Sol</button><button data-v="bass">Khóa Fa</button><button data-v="both">Cả hai</button>
-        </div>
-      </div>
-      <div class="row"><span>Số nốt:</span>
-        <div class="seg" id="runCount">
-          <button data-v="10">10</button><button data-v="20">20</button><button data-v="30">30</button><button data-v="50">50</button>
-        </div>
-      </div>
-      <div class="row"><label class="chk"><input type="checkbox" id="runFeedback"> Báo đúng/sai ngay khi chọn</label></div>
-      <button class="primary" id="runStart">Bắt đầu ▶</button>
-      <div class="best" id="runBest"></div>
-    </div>
-
-    <div class="panel" id="summary"></div>
 
     <div class="result" id="result"></div>
     <div class="accsel" id="accSel"><div class="seg" id="accSeg"></div></div>
@@ -210,10 +170,6 @@
       <button id="soundBtn" title="Nghe lại">🔊</button>
       <button id="nextBtn">Tiếp →</button>
     </div>
-    <div class="actions" id="runActions">
-      <button class="ghost" id="stopBtn">Kết thúc sớm</button>
-    </div>
-
     <svg id="kbd" viewBox="0 0 580 80" aria-label="Bàn phím piano"></svg>
   </div>
 
@@ -256,8 +212,8 @@ const MODES = [
     desc: "Đoán tên nốt trên khóa Fa, rồi bấm “Hiện kết quả” (hoặc chọn đáp án)." },
   { id: "both", ic: "𝄞𝄢", music: true, label: "Hai khóa",
     desc: "Khóa Sol và khóa Fa xuất hiện ngẫu nhiên xen kẽ." },
-  { id: "run", ic: "⏱", label: "Liên tục",
-    desc: "Nốt xuất hiện liên tục, chọn thật nhanh, chấm điểm khi hoàn thành." },
+  { id: "chord", ic: "♬", music: true, label: "Hợp âm",
+    desc: "Nhận biết hợp âm trên khuông nhạc: trưởng, thứ, giảm, tăng, hợp âm 7 và các thể đảo." },
   { id: "ear", ic: "🎧", label: "Luyện nghe",
     desc: "Nghe nốt Đô chuẩn, rồi nghe nốt bí ẩn và đoán xem đó là nốt gì." },
   { id: "sym", ic: "♯", music: true, label: "Ký hiệu",
@@ -389,13 +345,14 @@ function base(svg, clef = T, clefCls = "") { drawLines(svg); drawClef(svg, clef,
 
 // ===================== Bàn phím piano =====================
 const KB_FROM = 11, KB_TO = 45; // G1 → E6
-function drawKeyboard(hlMidi) {
+function drawKeyboard(hlMidis) {
   const svg = $("kbd"); svg.innerHTML = "";
+  const hl = new Set(hlMidis == null ? [] : [].concat(hlMidis));
   const n = KB_TO - KB_FROM + 1, w = 580 / n, h = 80;
   for (let i = 0; i < n; i++) {
     const d = KB_FROM + i;
     el("rect", { x: i * w, y: 0, width: w, height: h, rx: 2,
-      style: `fill:${midiOf(d) === hlMidi ? "var(--key-hl)" : "#fff"};stroke:#555;stroke-width:1` }, svg);
+      style: `fill:${hl.has(midiOf(d)) ? "var(--key-hl)" : "#fff"};stroke:#555;stroke-width:1` }, svg);
     if (d % 7 === 0) {
       const tx = el("text", { x: i * w + w / 2, y: h - 6, "text-anchor": "middle", "font-size": 8, fill: "#888" }, svg);
       tx.textContent = "C" + (d / 7);
@@ -404,7 +361,7 @@ function drawKeyboard(hlMidi) {
   for (let i = 0; i < n - 1; i++) {
     const li = (KB_FROM + i) % 7;
     if (li === 2 || li === 6) continue;
-    const black = midiOf(KB_FROM + i) + 1 === hlMidi;
+    const black = hl.has(midiOf(KB_FROM + i) + 1);
     el("rect", { x: (i + 1) * w - w * 0.3, y: 0, width: w * 0.6, height: h * 0.6, rx: 1.5,
       style: `fill:${black ? "var(--key-hl)" : "#222"};stroke:#222;stroke-width:1` }, svg);
   }
@@ -468,20 +425,18 @@ function synthNote(c, midi, t) {
 
 // ===================== Trạng thái & hiển thị =====================
 const state = { mode: "both", clef: T, d: 30, acc: 0, revealed: false, good: 0, bad: 0, streak: 0,
-  run: null, sym: null, ear: null, phase: "", accSel: 0 };
+  chord: null, sym: null, ear: null, phase: "", accSel: 0 };
 
-const PARTS = ["runBar", "staff", "setup", "summary", "result", "accSel", "answers", "actions", "runActions", "kbd", "stats"];
+const PARTS = ["chordOpts", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"];
 const VIEWS = {
   note: ["staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
   ear: ["staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
   sym: ["staff", "result", "answers", "actions", "stats"],
-  runSetup: ["setup"],
-  run: ["runBar", "staff", "accSel", "answers", "runActions"],
-  runDone: ["summary"],
+  chord: ["chordOpts", "staff", "result", "answers", "actions", "kbd", "stats"],
 };
 const OPTS = {
-  note: ["optLedger", "optAcc", "optSound", "optAuto"], runSetup: ["optLedger", "optAcc", "optSound"],
-  ear: ["optAcc", "optRef", "optAuto"], run: [], sym: [], runDone: [],
+  note: ["optLedger", "optAcc", "optSound", "optAuto"], chord: ["optAcc", "optSound", "optAuto"],
+  ear: ["optAcc", "optRef", "optAuto"], sym: [],
 };
 const ALL_OPTS = ["optLedger", "optAcc", "optSound", "optAuto", "optRef"];
 
@@ -501,15 +456,13 @@ const HINTS = {
   note: "Phím tắt: Space = hiện kết quả · Enter / → = nốt tiếp · 1–7 hoặc C D E F G A B = chọn nốt · R = nghe lại",
   ear: "Phím tắt: R = nghe lại · Space = hiện kết quả · Enter / → = câu tiếp · 1–7 hoặc C D E F G A B = chọn nốt",
   sym: "Phím tắt: Space = hiện kết quả · Enter / → = ký hiệu tiếp · 1–4 = chọn đáp án",
-  runSetup: "Phím tắt: Enter = bắt đầu",
-  run: "Phím tắt: 1–7 hoặc C D E F G A B = chọn nốt",
-  runDone: "Phím tắt: Enter = làm lại",
+  chord: "Phím tắt: 1–4 = chọn đáp án · Space = hiện kết quả · Enter / → = hợp âm tiếp · R = nghe hợp âm",
 };
 function view(name) {
   state.phase = name;
   PARTS.forEach(id => { $(id).style.display = VIEWS[name].includes(id) ? "" : "none"; });
   if (VIEWS[name].includes("accSel") && !accOn()) $("accSel").style.display = "none";
-  $("soundBtn").style.display = name === "note" || name === "ear" ? "" : "none";
+  $("soundBtn").style.display = name === "sym" ? "none" : "";
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
   $("noteOpts").style.display = OPTS[name].length ? "" : "none";
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
@@ -571,12 +524,12 @@ function markAnswers(rightLi, guess, guessOk) {
 }
 
 function setMode(m) {
-  stopTimer(); clearAuto();
+  clearAuto();
   state.mode = m; lsSet("mode", m);
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
   $("modeDesc").textContent = MODES.find(x => x.id === m).desc;
   resetStats();
-  if (m === "run") return showRunSetup();
+  if (m === "chord") { view("chord"); return newChord(); }
   if (m === "sym") { view("sym"); return newSymbol(); }
   if (m === "ear") { view("ear"); buildNoteAnswers(g => revealEar(g)); return newEar(); }
   view("note");
@@ -665,136 +618,152 @@ function revealEar(guess) {
   scheduleAuto(newEar);
 }
 
-// ===================== Chế độ luyện liên tục =====================
-const PAGE = 5, RUN_XS = [110, 162, 214, 266, 318];
-let runCfg = lsGet("runCfg", { clef: "both", count: 20, feedback: false });
-const isRight = it => it.ans && it.ans.li === it.d % 7 && it.ans.acc === it.acc;
+// ===================== Chế độ hợp âm =====================
+const QUALITIES = [
+  { id: "maj", vi: "trưởng", sym: "", iv: [0, 4, 7], lvl: 1,
+    desc: "Hợp âm trưởng = nốt gốc + quãng 3 trưởng (4 nửa cung) + quãng 5 đúng (7 nửa cung). Âm sắc tươi sáng, vui." },
+  { id: "min", vi: "thứ", sym: "m", iv: [0, 3, 7], lvl: 1,
+    desc: "Hợp âm thứ = nốt gốc + quãng 3 thứ (3 nửa cung) + quãng 5 đúng (7 nửa cung). Âm sắc buồn, dịu." },
+  { id: "dim", vi: "giảm", sym: "dim", iv: [0, 3, 6], lvl: 2,
+    desc: "Hợp âm giảm = nốt gốc + quãng 3 thứ (3 nửa cung) + quãng 5 giảm (6 nửa cung). Âm sắc căng thẳng, bất ổn." },
+  { id: "aug", vi: "tăng", sym: "aug", iv: [0, 4, 8], lvl: 2,
+    desc: "Hợp âm tăng = nốt gốc + quãng 3 trưởng (4 nửa cung) + quãng 5 tăng (8 nửa cung). Âm sắc lơ lửng, huyền ảo." },
+  { id: "dom7", vi: "bảy", sym: "7", iv: [0, 4, 7, 10], lvl: 3,
+    desc: "Hợp âm 7 (át) = hợp âm trưởng + quãng 7 thứ (10 nửa cung). Tạo cảm giác chờ đợi, muốn chuyển về hợp âm chủ." },
+  { id: "maj7", vi: "bảy trưởng", sym: "maj7", iv: [0, 4, 7, 11], lvl: 3,
+    desc: "Hợp âm 7 trưởng = hợp âm trưởng + quãng 7 trưởng (11 nửa cung). Âm sắc mềm mại, mơ màng (hay gặp trong jazz, pop)." },
+  { id: "m7", vi: "thứ bảy", sym: "m7", iv: [0, 3, 7, 10], lvl: 3,
+    desc: "Hợp âm 7 thứ = hợp âm thứ + quãng 7 thứ (10 nửa cung). Âm sắc êm, buồn nhẹ." },
+];
+const INV_NAMES = ["Thế gốc", "Thể đảo 1", "Thể đảo 2", "Thể đảo 3"];
+let chordCfg = Object.assign({ clef: "treble", level: 1, inv: false }, lsGet("chordCfg", {}));
 
+// Xếp chồng quãng 3 từ nốt gốc; trả về null nếu cần dấu hóa kép (hoặc cần ♯♭ khi đang tắt thăng/giáng)
+function buildChord(d, acc, q) {
+  const root = midiOf(d, acc), tones = [];
+  for (let k = 0; k < q.iv.length; k++) {
+    const dd = d + 2 * k, a = root + q.iv[k] - midiOf(dd);
+    if (Math.abs(a) > 1 || (!accOn() && a !== 0)) return null;
+    tones.push({ d: dd, acc: a });
+  }
+  return tones;
+}
+function chordPool() {
+  const pool = [];
+  for (let li = 0; li < 7; li++) {
+    const accs = accOn() ? [-1, 0, 1].filter(a => !(a === 1 && (li === 2 || li === 6)) && !(a === -1 && (li === 0 || li === 3))) : [0];
+    for (const acc of accs) for (const q of QUALITIES) {
+      if (q.lvl > chordCfg.level) continue;
+      const tones = buildChord(28 + li, acc, q);
+      if (!tones) continue;
+      const root = SOLFEGE[li] + ACC_SYM[acc];
+      pool.push({ li, acc, q, tones, name: `${root} ${q.vi}`, symbol: LETTERS[li] + ACC_SYM[acc] + q.sym,
+        pcs: tones.map(t => midiOf(t.d, t.acc) % 12) });
+    }
+  }
+  return pool;
+}
 function setupSeg(id, value, onChange) {
   const btns = $(id).querySelectorAll("button");
   const mark = v => btns.forEach(b => b.classList.toggle("on", b.dataset.v === String(v)));
   mark(value);
   btns.forEach(b => b.onclick = () => { mark(b.dataset.v); onChange(b.dataset.v); });
 }
-const bestKey = () => `best_${runCfg.clef}_${runCfg.count}_${$("ledger").checked ? 1 : 0}${accOn() ? "_acc" : ""}`;
-function showBest() {
-  const b = lsGet(bestKey(), null);
-  $("runBest").textContent = b ? `🏆 Kỷ lục với cài đặt này: ${b.good}/${b.total} (${b.pct}%) trong ${fmtTime(b.ms)}` : "";
+function initChordOpts() {
+  const save = () => lsSet("chordCfg", chordCfg);
+  setupSeg("chordClef", chordCfg.clef, v => { chordCfg.clef = v; save(); newChord(); });
+  setupSeg("chordLevel", chordCfg.level, v => { chordCfg.level = +v; save(); newChord(); });
+  $("inv").checked = chordCfg.inv;
+  $("inv").onchange = () => { chordCfg.inv = $("inv").checked; save(); newChord(); };
 }
-function showRunSetup() {
-  view("runSetup");
-  setupSeg("runClef", runCfg.clef, v => { runCfg.clef = v; lsSet("runCfg", runCfg); showBest(); });
-  setupSeg("runCount", runCfg.count, v => { runCfg.count = +v; lsSet("runCfg", runCfg); showBest(); });
-  $("runFeedback").checked = runCfg.feedback;
-  showBest();
+
+function newChord() {
+  clearAuto();
+  const pool = chordPool(), prev = state.chord;
+  let c;
+  do { c = pool[rnd(pool.length)]; } while (pool.length > 1 && prev && c.name === prev.c.name);
+  const clef = chordCfg.clef === "both" ? (Math.random() < 0.5 ? T : B) : chordCfg.clef;
+  const shift = (clef === T ? 28 : 21) - 28; // gốc ở quãng 4 (khóa Sol) hoặc quãng 3 (khóa Fa)
+  let tones = c.tones.map(t => ({ d: t.d + shift, acc: t.acc }));
+  const inv = chordCfg.inv ? rnd(tones.length) : 0;
+  for (let i = 0; i < inv; i++) tones[i] = { d: tones[i].d + 7, acc: tones[i].acc };
+  tones.sort((a, b) => a.d - b.d);
+  const top = CLEFS[clef].bottom + 8;
+  if (tones[tones.length - 1].d > top + 4) tones = tones.map(t => ({ d: t.d - 7, acc: t.acc }));
+
+  // Đáp án nhiễu: cùng nốt gốc khác loại, hợp âm có chung ≥2 nốt, rồi ngẫu nhiên
+  const others = pool.filter(x => x.name !== c.name);
+  const sameRoot = shuffle(others.filter(x => x.li === c.li && x.acc === c.acc));
+  const shared = shuffle(others.filter(x => x.pcs.filter(p => c.pcs.includes(p)).length >= 2));
+  const picks = [];
+  for (const x of [...sameRoot.slice(0, 1), ...shared.slice(0, 2), ...shuffle(others)])
+    if (picks.length < 3 && !picks.includes(x)) picks.push(x);
+  const choices = shuffle([c, ...picks]);
+
+  state.chord = { c, tones, inv, clef, choices, revealed: false };
+  const box = $("answers"); box.className = "answers sym"; box.innerHTML = "";
+  choices.forEach((x, i) => {
+    const b = document.createElement("button");
+    b.innerHTML = `${x.name} <small>${x.symbol}</small>`;
+    b.onclick = () => revealChord(i);
+    box.appendChild(b);
+  });
+  $("result").innerHTML = '<span class="hint">Đây là hợp âm gì?</span>';
+  renderChord(); drawKeyboard(null);
 }
-function startRun() {
-  runCfg.feedback = $("runFeedback").checked; lsSet("runCfg", runCfg);
-  const items = []; let prev = null;
-  for (let p = 0; p < runCfg.count; p += PAGE) {
-    const clef = runCfg.clef === "both" ? (Math.random() < 0.5 ? T : B) : runCfg.clef;
-    for (let j = 0; j < PAGE && p + j < runCfg.count; j++) {
-      const r = randNote(clef, prev); prev = r;
-      items.push({ clef, d: r.d, acc: r.acc, ans: null });
-    }
-  }
-  state.run = { items, idx: 0, pageStart: 0, start: Date.now(), lock: false, feedback: runCfg.feedback };
-  view("run");
-  buildNoteAnswers(g => answerRun(g));
-  stopTimer();
-  state.run.timer = setInterval(updateRunBar, 250);
-  updateRunBar(); renderRun();
-}
-function stopTimer() { if (state.run && state.run.timer) { clearInterval(state.run.timer); state.run.timer = null; } }
-function updateRunBar() {
-  const R = state.run; if (!R) return;
-  const total = R.items.length;
-  $("runProg").textContent = `${Math.min(R.idx + 1, total)}/${total}`;
-  $("runFill").style.width = (R.idx / total * 100) + "%";
-  $("runTime").textContent = "⏱ " + fmtTime(Date.now() - R.start);
-}
-function renderRun() {
-  const R = state.run, svg = $("staff"); svg.innerHTML = "";
-  const page = R.items.slice(R.pageStart, R.pageStart + PAGE);
-  const lastAcc = {}; // dấu hóa còn hiệu lực trong "ô nhịp" (trang) hiện tại
-  drawLines(svg); drawClef(svg, page[0].clef);
-  page.forEach((it, j) => {
-    const k = R.pageStart + j, x = RUN_XS[j];
-    let cls = "";
-    if (k === R.idx && !R.lock) cls = "hl";
-    else if (it.ans) cls = R.feedback ? (isRight(it) ? "good" : "bad") : "dim";
-    const natural = it.acc === 0 && !!lastAcc[it.d];
-    lastAcc[it.d] = it.acc;
-    drawNote(svg, x, it.d, it.clef, { cls, acc: it.acc, natural });
-    if (k === R.idx && !R.lock) el("path", { d: `M${x - 6} 14 L${x + 6} 14 L${x} 22 Z`, class: "f hl" }, svg);
-    if (it.ans) {
-      const ok = isRight(it);
-      el("text", { x, y: 199, class: "lbl " + (R.feedback ? (ok ? "good" : "bad") : "") }, svg).textContent = label(it.ans);
-      if (R.feedback && !ok)
-        el("text", { x, y: 213, class: "lbl good" }, svg).textContent = "→ " + nameOf(it.d, it.acc).vi;
-    }
+function drawChordNotes(svg, x, tones, clef, cls) {
+  const ts = [...tones].sort((a, b) => a.d - b.d);
+  let prevD = -99, prevShift = false;
+  ts.forEach(t => { // 2 nốt cách nhau quãng 2 thì đầu nốt trên dịch sang phải
+    const shift = t.d - prevD === 1 && !prevShift;
+    drawNote(svg, x + (shift ? S * 1.6 : 0), t.d, clef, { type: "whole", cls });
+    prevShift = shift; prevD = t.d;
+  });
+  const cols = []; // dấu hóa xếp thành cột để không chồng lên nhau
+  [...ts].reverse().filter(t => t.acc).forEach(t => {
+    let c = 0;
+    while ((cols[c] || []).some(d => Math.abs(d - t.d) < 6)) c++;
+    (cols[c] = cols[c] || []).push(t.d);
+    const y = yOf(t.d, clef), ax = x - S * 1.8 - c * 12;
+    glyph(svg, t.acc === 1 ? "♯" : "♭", t.acc === -1
+      ? { cx: ax + 2, top: y - 1.75 * S, bottom: y + 0.5 * S }
+      : { cx: ax, top: y - 1.45 * S, bottom: y + 1.45 * S }, cls);
   });
 }
-function answerRun(g) {
-  const R = state.run;
-  if (!R || R.lock || state.phase !== "run") return;
-  const it = R.items[R.idx]; it.ans = g;
-  if (R.feedback) {
-    const b = $("answers").children[g.li];
-    b.className = isRight(it) ? "right" : "wrong";
-    setTimeout(() => { b.className = ""; }, 280);
-    if ($("autoSound").checked) play(midiOf(it.d, it.acc));
-  }
-  setAccSel(0);
-  R.idx++;
-  updateRunBar();
-  if (R.idx >= R.items.length) {
-    R.lock = true; renderRun();
-    setTimeout(() => { if (state.run === R) finishRun(); }, 450);
-    return;
-  }
-  if (R.idx >= R.pageStart + PAGE) {
-    R.lock = true; renderRun();
-    setTimeout(() => {
-      if (state.run !== R || state.phase !== "run") return;
-      R.pageStart = R.idx; R.lock = false; renderRun();
-    }, R.feedback ? 650 : 300);
-  } else renderRun();
+function renderChord() {
+  const svg = $("staff"), st = state.chord; svg.innerHTML = "";
+  drawLines(svg); drawClef(svg, st.clef);
+  drawChordNotes(svg, NOTE_X, st.tones, st.clef, st.revealed ? "good" : "");
+  if (st.revealed)
+    el("text", { x: NOTE_X, y: 28, "text-anchor": "middle", "font-size": 20, "font-weight": 800, class: "f good" }, svg).textContent = st.c.symbol;
 }
-function finishRun() {
-  const R = state.run; if (!R || state.phase !== "run") return;
-  stopTimer();
-  const ms = Date.now() - R.start;
-  const done = R.items.filter(it => it.ans);
-  const good = done.filter(isRight).length;
-  const total = done.length;
-  const pct = total ? Math.round(good / total * 100) : 0;
-  let record = false;
-  if (total === R.items.length) {
-    const b = lsGet(bestKey(), null);
-    if (!b || pct > b.pct || (pct === b.pct && ms < b.ms)) { lsSet(bestKey(), { good, total, pct, ms }); record = true; }
+const chordMidis = () => state.chord.tones.map(t => midiOf(t.d, t.acc)).sort((a, b) => a - b);
+function playChord() {
+  if (!state.chord) return;
+  const ms = chordMidis(), gap = 0.28;
+  playSeq([...ms.map((m, i) => [m, i * gap]), ...ms.map(m => [m, ms.length * gap + 0.25])]);
+}
+function revealChord(guess) {
+  const st = state.chord; if (!st || st.revealed) return;
+  st.revealed = true;
+  const right = st.choices.indexOf(st.c);
+  let verdict = "";
+  if (guess !== undefined) {
+    score(guess === right);
+    verdict = guess === right ? '<span class="ok">✔</span> ' : '<span class="no">✘</span> ';
   }
-  const msg = pct === 100 ? "Tuyệt vời! 🎉" : pct >= 80 ? "Rất tốt! 👏" : pct >= 50 ? "Khá lắm, luyện thêm nhé!" : "Cố lên, luyện tiếp nào 💪";
-  const chips = done.map((it, k) => {
-    const n = nameOf(it.d, it.acc), icon = it.clef === T ? "𝄞" : "𝄢";
-    return isRight(it)
-      ? `<span class="chip ok">${k + 1}. <span class="music">${icon}</span> ${n.vi}</span>`
-      : `<span class="chip no" title="Bạn chọn ${label(it.ans)}">${k + 1}. <span class="music">${icon}</span> ${n.vi} (${n.en}) · <s>${label(it.ans)}</s></span>`;
-  }).join("");
-  $("summary").innerHTML = `
-    <h2>Kết quả</h2>
-    <div class="score">${good}/${total}</div>
-    <div class="score-sub">${pct}% · ${fmtTime(ms)} · ${total ? (ms / 1000 / total).toFixed(1) : 0} giây/nốt</div>
-    <div>${msg} ${record ? '<span class="record">🏆 Kỷ lục mới!</span>' : ""}</div>
-    ${total - good ? `<div class="score-sub" style="margin-top:10px">Nốt đỏ là nốt sai: tên đúng · <s>bạn chọn</s></div>` : ""}
-    <div class="chips">${chips || "<span class='score-sub'>Chưa trả lời nốt nào.</span>"}</div>
-    <div class="btnrow">
-      <button class="primary ghost" id="cfgBtn">⚙ Đổi cài đặt</button>
-      <button class="primary" id="againBtn">↻ Làm lại</button>
-    </div>`;
-  $("againBtn").onclick = startRun;
-  $("cfgBtn").onclick = showRunSetup;
-  view("runDone");
+  const notes = st.c.tones.map(t => SOLFEGE[t.d % 7] + ACC_SYM[t.acc]).join(" – ");
+  const low = st.tones[0];
+  const invTxt = st.inv ? `${INV_NAMES[st.inv]}: nốt ${SOLFEGE[low.d % 7] + ACC_SYM[low.acc]} ở dưới cùng` : "Thế gốc: nốt gốc ở dưới cùng";
+  $("result").innerHTML = `<div class="big">${verdict}${st.c.name} <span class="small">(${st.c.symbol})</span></div>` +
+    `<div class="small">Các nốt: <b>${notes}</b> · ${invTxt}</div><div class="desc">${st.c.q.desc}</div>`;
+  [...$("answers").children].forEach((b, i) => {
+    b.disabled = true;
+    if (i === right) b.className = "right"; else if (i === guess) b.className = "wrong";
+  });
+  renderChord(); drawKeyboard(chordMidis());
+  if ($("autoSound").checked) playChord();
+  scheduleAuto(newChord);
 }
 
 // ===================== Chế độ ký hiệu =====================
@@ -956,13 +925,12 @@ MODES.forEach(m => {
   b.onclick = () => setMode(m.id);
   $("modes").appendChild(b);
 });
-const byMode = (sym, ear, note) => () => (state.mode === "sym" ? sym : state.mode === "ear" ? ear : note)();
-$("showBtn").onclick = byMode(() => revealSym(), () => revealEar(), () => revealNote());
-$("nextBtn").onclick = byMode(newSymbol, newEar, newNote);
-$("soundBtn").onclick = byMode(() => {}, playEar, () => play(midiOf(state.d, state.acc)));
-$("runStart").onclick = startRun;
-$("stopBtn").onclick = finishRun;
+const byMode = (sym, ear, note, chord) => () => (state.mode === "sym" ? sym : state.mode === "ear" ? ear : state.mode === "chord" ? chord : note)();
+$("showBtn").onclick = byMode(() => revealSym(), () => revealEar(), () => revealNote(), () => revealChord());
+$("nextBtn").onclick = byMode(newSymbol, newEar, newNote, newChord);
+$("soundBtn").onclick = byMode(() => {}, playEar, () => play(midiOf(state.d, state.acc)), playChord);
 buildAccSel();
+initChordOpts();
 
 // Ghi nhớ các tùy chọn
 ["ledger", "acc", "autoSound", "earRef"].forEach(id => {
@@ -970,7 +938,7 @@ buildAccSel();
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
 });
-$("ledger").addEventListener("change", () => { if (state.phase === "note") newNote(); if (state.phase === "runSetup") showBest(); });
+$("ledger").addEventListener("change", () => { if (state.phase === "note") newNote(); });
 $("autoNext").addEventListener("change", () => {
   if (!$("autoNext").checked) { clearAuto(); document.querySelectorAll(".autobar").forEach(b => b.remove()); }
 });
@@ -978,14 +946,14 @@ $("acc").addEventListener("change", () => {
   view(state.phase);
   if (state.phase === "note") newNote();
   else if (state.phase === "ear") newEar();
-  else if (state.phase === "runSetup") showBest();
+  else if (state.phase === "chord") newChord();
 });
 
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase(), p = state.phase;
   const noteIdx = k >= "1" && k <= "7" ? +k - 1 : LETTER_KEY[k];
-  if ((p === "note" || p === "ear" || p === "run") && accOn()) {
+  if ((p === "note" || p === "ear") && accOn()) {
     const v = k === "-" || k === "_" ? -1 : k === "+" || k === "=" || k === "#" ? 1 : k === "0" ? 0 : null;
     if (v !== null) { e.preventDefault(); setAccSel(state.accSel === v ? 0 : v); return; }
   }
@@ -999,17 +967,19 @@ document.addEventListener("keydown", e => {
     if (k === " ") { e.preventDefault(); revealSym(); }
     else if (k === "enter" || k === "arrowright") { e.preventDefault(); newSymbol(); }
     else if (k >= "1" && k <= "4") revealSym(+k - 1);
-  } else if (p === "run") {
-    if (noteIdx !== undefined) { e.preventDefault(); answerRun(pick(noteIdx)); }
-  } else if (p === "runSetup" && k === "enter") { e.preventDefault(); startRun(); }
-  else if (p === "runDone" && k === "enter") { e.preventDefault(); startRun(); }
+  } else if (p === "chord") {
+    if (k === " ") { e.preventDefault(); revealChord(); }
+    else if (k === "enter" || k === "arrowright") { e.preventDefault(); newChord(); }
+    else if (k === "r") playChord();
+    else if (k >= "1" && k <= "4") revealChord(+k - 1);
+  }
 });
 
 function rerender() {
   if (state.phase === "note") renderNote();
   else if (state.phase === "ear") renderEar();
   else if (state.phase === "sym") renderSym();
-  else if (state.phase === "run") renderRun();
+  else if (state.phase === "chord") renderChord();
 }
 
 const startMode = lsGet("mode", "both");

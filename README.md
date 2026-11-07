@@ -11,11 +11,11 @@
 | 𝄞 Khóa Sol | Đoán tên nốt trên khóa Sol |
 | 𝄢 Khóa Fa | Đoán tên nốt trên khóa Fa |
 | 𝄞𝄢 Hai khóa | Khóa Sol và khóa Fa ngẫu nhiên xen kẽ |
-| ⏱ Liên tục | Nốt xuất hiện liên tục, chấm điểm khi hoàn thành, lưu kỷ lục |
+| ♬ Hợp âm | Nhận biết hợp âm trưởng, thứ, giảm, tăng, hợp âm 7 và các thể đảo |
 | 🎧 Luyện nghe | Nghe nốt Đô chuẩn rồi nốt bí ẩn, đoán tên nốt |
 | ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |
 
-Tùy chọn: dòng kẻ phụ, nốt thăng/giáng (♯ ♭), phát âm thanh piano thật.
+Tùy chọn: dòng kẻ phụ, nốt thăng/giáng (♯ ♭), phát âm thanh piano thật, tự chuyển câu sau 2 giây.
 
 **Phím tắt:**
 - `1`–`7` hoặc `C D E F G A B`: chọn nốt
