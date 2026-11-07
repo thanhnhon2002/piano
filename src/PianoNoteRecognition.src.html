@@ -173,7 +173,11 @@
   <div class="settings" id="noteOpts">
     <span class="chk ledsel" id="optLedger">Dòng kẻ phụ: <select id="ledger" title="Số dòng kẻ phụ phía trên và phía dưới khuông"></select></span>
     <label class="chk" id="optOtt" title="Nốt cần từ 4 dòng kẻ phụ trở lên được viết gọn bằng ký hiệu quãng tám"><input type="checkbox" id="ottava" checked> Dùng 8va/8vb</label>
-    <label class="chk" id="optAcc"><input type="checkbox" id="acc"> Thăng/giáng ♯♭</label>
+    <label class="chk ledsel" id="optAcc" title="Dấu hóa: thăng ♯, giáng ♭, bình ♮">Dấu hóa: <select id="acc">
+      <option value="0">Không</option>
+      <option value="1">Có ♯ ♭ ngẫu nhiên</option>
+      <option value="2">Nâng cao: hóa biểu + dấu bình ♮</option>
+    </select></label>
     <label class="chk" id="optTimer"><input type="checkbox" id="timer"> ⏱ Đếm giờ</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
     <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
@@ -295,7 +299,9 @@ function randAcc(d, chance) {
   if (li !== 0 && li !== 3) opts.push(-1);
   return opts[rnd(opts.length)];
 }
-const accOn = () => $("acc").checked;
+// Mức dấu hóa: 0 = không, 1 = có ♯ ♭ ngẫu nhiên, 2 = nâng cao (hóa biểu + dấu bình; chỉ ở Học nốt)
+const accLevel = () => +$("acc").value || 0;
+const accOn = () => accLevel() >= 1;
 const yOf = (d, clef) => BOTTOM - (d - CLEFS[clef].bottom) * S / 2;
 
 // ===================== Vẽ khuông nhạc =====================
@@ -692,12 +698,48 @@ function renderTimer(left, text) {
 }
 
 const noteRight = it => !!it.ans && (it.ans.ok !== undefined ? it.ans.ok : it.ans.li === it.d % 7 && it.ans.acc === it.acc);
-const noteXs = n => n === 1 ? [NOTE_X] : Array.from({ length: n }, (_, i) => 214 + (i - (n - 1) / 2) * (n === 5 ? 52 : 60));
+// ---- Hóa biểu (mức Nâng cao): -6..6 (âm = số dấu giáng, dương = số dấu thăng)
+const KEY_SHARPS = [3, 0, 4, 1, 5, 2, 6], KEY_FLATS = [6, 2, 5, 1, 4, 0, 3]; // thứ tự Fa Đô Sol Rê La Mi Si / ngược lại
+const SHARP_POS = { treble: [8, 5, 9, 6, 3, 7, 4], bass: [6, 3, 7, 4, 1, 5, 2] }; // vị trí tính từ dòng 1 (bậc)
+const FLAT_POS = { treble: [4, 7, 3, 6, 2, 5, 1], bass: [2, 5, 1, 4, 0, 3, -1] };
+const KEY_NAMES = {
+  0: ["Đô trưởng", "La thứ"], 1: ["Sol trưởng", "Mi thứ"], 2: ["Rê trưởng", "Si thứ"], 3: ["La trưởng", "Fa♯ thứ"],
+  4: ["Mi trưởng", "Đô♯ thứ"], 5: ["Si trưởng", "Sol♯ thứ"], 6: ["Fa♯ trưởng", "Rê♯ thứ"],
+  "-1": ["Fa trưởng", "Rê thứ"], "-2": ["Si♭ trưởng", "Sol thứ"], "-3": ["Mi♭ trưởng", "Đô thứ"],
+  "-4": ["La♭ trưởng", "Fa thứ"], "-5": ["Rê♭ trưởng", "Si♭ thứ"], "-6": ["Sol♭ trưởng", "Mi♭ thứ"],
+};
+const KEY_X = 70, KEY_STEP = 11;
+function keyAccOf(k) {
+  const a = [0, 0, 0, 0, 0, 0, 0];
+  (k > 0 ? KEY_SHARPS : KEY_FLATS).slice(0, Math.abs(k)).forEach(li => { a[li] = Math.sign(k); });
+  return a;
+}
+function keyDesc(k) {
+  const [maj, min] = KEY_NAMES[k];
+  return (k === 0 ? "không dấu" : Math.abs(k) + (k > 0 ? "♯" : "♭")) + ` (${maj} / ${min})`;
+}
+function drawKeySig(svg, clef, k) {
+  const pos = (k > 0 ? SHARP_POS : FLAT_POS)[clef], b = CLEFS[clef].bottom;
+  for (let i = 0; i < Math.abs(k); i++) {
+    const y = yOf(b + pos[i], clef), cx = KEY_X + i * KEY_STEP;
+    glyph(svg, k > 0 ? "♯" : "♭", k > 0
+      ? { cx, top: y - 1.45 * S, bottom: y + 1.45 * S }
+      : { cx, top: y - 1.75 * S, bottom: y + 0.5 * S });
+  }
+}
+// Vị trí các nốt: chừa chỗ cho hóa biểu
+function noteXs(n) {
+  if (n === 1) return [NOTE_X];
+  const L = KEY_X + Math.abs(state.key || 0) * KEY_STEP + 34;
+  const sp = Math.min(n === 5 ? 52 : 60, (330 - L) / (n - 1));
+  const start = Math.min(Math.max(L, 214 - (n - 1) / 2 * sp), 330 - (n - 1) * sp);
+  return Array.from({ length: n }, (_, i) => start + i * sp);
+}
 function renderNote() {
   const svg = $("staff"), notes = state.notes, n = notes.length, xs = noteXs(n);
   svg.innerHTML = "";
   drawLines(svg); drawClef(svg, state.clef);
-  const lastAcc = {}; // dấu hóa còn hiệu lực trên khuông → thêm dấu bình ♮ khi cần
+  if (state.key) drawKeySig(svg, state.clef, state.key);
   const tops = [], bottoms = [], marks = [];
   notes.forEach((it, j) => {
     const x = xs[j], cur = n > 1 && !state.revealed && j === state.idx;
@@ -705,10 +747,9 @@ function renderNote() {
     if (it.ans) cls = noteRight(it) ? "good" : "bad";
     else if (state.revealed) cls = n === 1 ? "good" : "dim";
     else if (cur) cls = "hl";
-    const natural = it.acc === 0 && !!lastAcc[it.d];
-    lastAcc[it.d] = it.acc;
     const disp = displayOf(it.d, state.clef), y = yOf(disp.d, state.clef);
-    drawNote(svg, x, disp.d, state.clef, { cls, acc: it.acc, natural });
+    const sign = it.sign; // null: không ghi dấu; -1/1: ♭/♯; 0: ♮
+    drawNote(svg, x, disp.d, state.clef, { cls, acc: sign === 1 || sign === -1 ? sign : 0, natural: sign === 0 });
     if (disp.ott) { // ký hiệu quãng tám: 8va phía trên nốt, 8vb phía dưới nốt
       // nốt cao có đuôi quay xuống nên ghi 8va sát trên đầu nốt; nốt thấp đuôi quay lên nên ghi 8vb sát dưới
       const ty = disp.ott > 0 ? y - 15 : y + 24;
@@ -740,16 +781,36 @@ function newNote() {
   state.clef = state.mode === "both" ? (Math.random() < 0.5 ? T : B) : state.mode;
   const count = 1 + rnd(state.noteMax);
   let avoid = state.clef === prevClef && prevLast ? prevLast : null;
+  const adv = accLevel() === 2;
+  state.key = adv ? rnd(13) - 6 : 0; // hóa biểu ngẫu nhiên -6..6
+  const keyAcc = keyAccOf(state.key);
   state.notes = [];
   for (let i = 0; i < count; i++) {
     const r = randNote(state.clef, avoid);
+    if (adv) { // phần lớn theo hóa biểu, đôi khi bị thay đổi (♯ ♭ ♮)
+      const li = r.d % 7, k = keyAcc[li];
+      if (Math.random() < 0.65) r.acc = k;
+      else {
+        const opts = [-1, 0, 1].filter(a => a !== k && !(a === 1 && (li === 2 || li === 6)) && !(a === -1 && (li === 0 || li === 3)));
+        r.acc = opts.length ? opts[rnd(opts.length)] : k;
+      }
+    }
     state.notes.push({ d: r.d, acc: r.acc, ans: null });
     avoid = r;
   }
+  // Dấu hóa phải ghi: dấu trước một nốt còn hiệu lực cho các nốt cùng vị trí phía sau trên khuông
+  const inEffect = {};
+  state.notes.forEach(it => {
+    const base = it.d in inEffect ? inEffect[it.d] : keyAcc[it.d % 7];
+    if (adv) it.sign = it.acc !== base ? it.acc : (Math.random() < 0.2 ? it.acc : null); // 20%: dấu thừa "đánh lừa"
+    else it.sign = it.acc !== 0 ? it.acc : (base !== 0 ? 0 : null);
+    inEffect[it.d] = it.acc;
+  });
   state.idx = 0; state.revealed = false; clearAuto();
-  $("result").innerHTML = count === 1
+  $("result").innerHTML = (count === 1
     ? '<span class="hint">Nốt này là nốt gì?</span>'
-    : `<span class="hint">Đọc lần lượt ${count} nốt từ trái sang phải</span>`;
+    : `<span class="hint">Đọc lần lượt ${count} nốt từ trái sang phải</span>`) +
+    (adv ? '<span class="hint" style="font-size:.85rem">Nhớ để ý hóa biểu đầu khuông và dấu bình ♮</span>' : "");
   resetAnswerButtons();
   renderNote(); drawKeyboard(null);
   startQTimer();
@@ -800,7 +861,7 @@ function revealNote(guess, timeout) {
     }
   }
 
-  const clefTxt = state.clef === T ? "khóa Sol" : "khóa Fa";
+  const clefTxt = (state.clef === T ? "khóa Sol" : "khóa Fa") + (accLevel() === 2 ? " · Hóa biểu: " + keyDesc(state.key) : "");
   if (n === 1) {
     const it = notes[0], nm = nameOf(it.d, it.acc), right = noteRight(it);
     const verdict = guess ? (right ? '<span class="ok">✔ Chính xác!</span> ' : '<span class="no">✘ Chưa đúng.</span> ')
@@ -1287,7 +1348,9 @@ for (let i = 0; i <= LEDGER_MAX; i++) $("ledger").add(new Option(String(i), Stri
 $("ledger").value = String(Math.min(LEDGER_MAX, Math.max(0, +lsGet("opt_ledgerN", 2) || 0)));
 $("ledger").addEventListener("change", () => { lsSet("opt_ledgerN", +$("ledger").value); view(state.phase); if (state.phase === "note") newNote(); });
 $("ottava").addEventListener("change", () => { if (state.phase === "note") renderNote(); });
-["acc", "autoSound", "earRef", "timer", "ottava"].forEach(id => {
+$("acc").value = String(Math.min(2, Math.max(0, +lsGet("opt_accLevel", lsGet("opt_acc", false) ? 1 : 0) || 0)));
+$("acc").addEventListener("change", () => lsSet("opt_accLevel", accLevel()));
+["autoSound", "earRef", "timer", "ottava"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
