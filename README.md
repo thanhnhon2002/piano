@@ -22,6 +22,16 @@ Tùy chọn: dòng kẻ phụ, nốt thăng/giáng (♯ ♭), phát âm thanh pi
 - `Enter`: sang câu tiếp
 - `R`: nghe lại
 
+## Kết nối đàn piano điện qua MIDI
+
+Cắm đàn vào máy tính bằng cáp USB (hoặc cáp MIDI qua bộ chuyển USB-MIDI), bật đàn, rồi bấm **🎹 Kết nối đàn (MIDI)** và chọn **Cho phép**. Sau đó trả lời bằng cách bấm trên đàn:
+
+- **Học nốt:** bấm đúng phím; mặc định phải đúng quãng tám (bỏ chọn được bằng ô *Không cần đúng quãng tám*)
+- **Luyện nghe:** bấm phím có cùng tên nốt với âm vừa nghe (quãng nào cũng được)
+- **Hợp âm:** bấm đủ các nốt của hợp âm, thể đảo nào cũng được
+
+Chạy được trên Chrome, Edge, Opera (máy tính và Android). Safari và iPhone/iPad chưa hỗ trợ Web MIDI.
+
 ## Cấu trúc thư mục
 
 ```

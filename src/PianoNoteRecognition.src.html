@@ -108,6 +108,12 @@
   #noteClef .music { margin-right: 4px; }
   .segwrap { display: inline-flex; align-items: center; gap: 8px; }
   #noteMax button { padding: 8px 11px; }
+  .midibar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; margin: -4px 0 12px; font-size: .92rem; }
+  .pill { border: 1px solid var(--border); background: var(--card); color: var(--ink); border-radius: 99px;
+    padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  .pill.on { border-color: var(--good); color: var(--good); }
+  .midistatus { color: var(--muted); font-size: .85rem; text-align: center; }
+  .midistatus.ok { color: var(--good); } .midistatus.bad { color: var(--bad); }
   .accsel { display: flex; justify-content: center; margin-top: 8px; }
   .accsel .seg button { padding: 7px 14px; font-weight: 600; }
   .answers { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 10px 0; }
@@ -150,6 +156,11 @@
 
   <nav class="modes" id="modes"></nav>
   <p class="sub" id="modeDesc"></p>
+  <div class="midibar" id="midiBar">
+    <button class="pill" id="midiBtn">🎹 Kết nối đàn (MIDI)</button>
+    <label class="chk" id="optOct"><input type="checkbox" id="midiAnyOct"> Không cần đúng quãng tám</label>
+    <span class="midistatus" id="midiStatus"></span>
+  </div>
 
   <div class="settings" id="noteOpts">
     <label class="chk" id="optLedger"><input type="checkbox" id="ledger" checked> Dòng kẻ phụ</label>
@@ -265,7 +276,8 @@ function nameOf(d, acc = 0) {
   const li = d % 7, a = ACC_SYM[acc];
   return { vi: SOLFEGE[li] + a, en: LETTERS[li] + a + Math.floor(d / 7), li };
 }
-const label = g => SOLFEGE[g.li] + ACC_SYM[g.acc];
+// Đáp án bấm từ đàn MIDI mà sai thì ghi kèm quãng tám (vd: Sol3) để thấy rõ bấm nhầm phím nào
+const label = g => SOLFEGE[g.li] + ACC_SYM[g.acc] + (g.midi != null && !g.ok ? Math.floor(g.midi / 12) - 1 : "");
 // Dấu hóa ngẫu nhiên hợp lệ cho nốt (bỏ Mi♯, Si♯, Fa♭, Đô♭ cho dễ học)
 function randAcc(d, chance) {
   if (!accOn() || Math.random() >= chance) return 0;
@@ -373,12 +385,16 @@ function base(svg, clef = T, clefCls = "") { drawLines(svg); drawClef(svg, clef,
 const KB_FROM = 11, KB_TO = 45; // G1 → E6
 function drawKeyboard(hlMidis) {
   const svg = $("kbd"); svg.innerHTML = "";
+  state.kbdHl = hlMidis;
   const hl = new Set(hlMidis == null ? [] : [].concat(hlMidis));
+  const held = typeof midi !== "undefined" ? midi.held : new Set(); // phím đang bấm trên đàn MIDI
+  const fillW = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#fff";
+  const fillB = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#222";
   const n = KB_TO - KB_FROM + 1, w = 580 / n, h = 80;
   for (let i = 0; i < n; i++) {
     const d = KB_FROM + i;
     el("rect", { x: i * w, y: 0, width: w, height: h, rx: 2,
-      style: `fill:${hl.has(midiOf(d)) ? "var(--key-hl)" : "#fff"};stroke:#555;stroke-width:1` }, svg);
+      style: `fill:${fillW(midiOf(d))};stroke:#555;stroke-width:1` }, svg);
     if (d % 7 === 0) {
       const tx = el("text", { x: i * w + w / 2, y: h - 6, "text-anchor": "middle", "font-size": 8, fill: "#888" }, svg);
       tx.textContent = "C" + (d / 7);
@@ -387,9 +403,8 @@ function drawKeyboard(hlMidis) {
   for (let i = 0; i < n - 1; i++) {
     const li = (KB_FROM + i) % 7;
     if (li === 2 || li === 6) continue;
-    const black = hl.has(midiOf(KB_FROM + i) + 1);
     el("rect", { x: (i + 1) * w - w * 0.3, y: 0, width: w * 0.6, height: h * 0.6, rx: 1.5,
-      style: `fill:${black ? "var(--key-hl)" : "#222"};stroke:#222;stroke-width:1` }, svg);
+      style: `fill:${fillB(midiOf(KB_FROM + i) + 1)};stroke:#222;stroke-width:1` }, svg);
   }
 }
 
@@ -507,6 +522,7 @@ function view(name) {
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
   $("noteOpts").style.display = OPTS[name].length ? "" : "none";
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
+  updateMidiUI();
 }
 function resetStats() { state.good = state.bad = state.streak = 0; updateStats(); }
 function updateStats() {
@@ -623,7 +639,7 @@ function renderTimer(left, text) {
   $("tLevel").textContent = text || levelText();
 }
 
-const noteRight = it => !!it.ans && it.ans.li === it.d % 7 && it.ans.acc === it.acc;
+const noteRight = it => !!it.ans && (it.ans.ok !== undefined ? it.ans.ok : it.ans.li === it.d % 7 && it.ans.acc === it.acc);
 const noteXs = n => n === 1 ? [NOTE_X] : Array.from({ length: n }, (_, i) => 214 + (i - (n - 1) / 2) * (n === 5 ? 52 : 60));
 function renderNote() {
   const svg = $("staff"), notes = state.notes, n = notes.length, xs = noteXs(n);
@@ -676,7 +692,8 @@ function answerNote(g) {
   if (state.notes.length === 1) return revealNote(g);
   const it = state.notes[state.idx];
   it.ans = g;
-  if ($("autoSound").checked) play(midiOf(it.d, it.acc)); // luôn phát âm của nốt đúng
+  // luôn phát âm của nốt đúng (trừ khi đã bấm đúng phím trên đàn MIDI: đàn tự phát rồi)
+  if ($("autoSound").checked && !(g.midi != null && g.ok)) play(midiOf(it.d, it.acc));
   const b = $("answers").children[g.li];
   b.className = noteRight(it) ? "right" : "wrong";
   setTimeout(() => { if (!state.revealed) b.className = ""; }, 250);
@@ -732,7 +749,8 @@ function revealNote(guess, timeout) {
   }
   renderNote(); drawKeyboard(noteMidis());
   // 1 nốt: phát nốt đó. Nhiều nốt: từng nốt đã phát khi chọn, chỉ phát lại cả khuông khi hết giờ
-  if ($("autoSound").checked && (n === 1 || timeout)) playNotes();
+  const pianoRight = n === 1 && guess && guess.midi != null && guess.ok;
+  if ($("autoSound").checked && (n === 1 || timeout) && !pianoRight) playNotes();
   scheduleAuto(newNote, allRight ? AUTO_MS : 2500); // sai / hết giờ: chờ 2,5 giây để xem đáp án
 }
 
@@ -908,7 +926,7 @@ function playChord() {
   const ms = chordMidis(), gap = 0.28;
   playSeq([...ms.map((m, i) => [m, i * gap]), ...ms.map(m => [m, ms.length * gap + 0.25])]);
 }
-function revealChord(guess) {
+function revealChord(guess, pressed) {
   const st = state.chord; if (!st || st.revealed) return;
   st.revealed = true;
   const right = st.choices.indexOf(st.c);
@@ -921,13 +939,15 @@ function revealChord(guess) {
   const low = st.tones[0];
   const invTxt = st.inv ? `${INV_NAMES[st.inv]}: nốt ${SOLFEGE[low.d % 7] + ACC_SYM[low.acc]} ở dưới cùng` : "Thế gốc: nốt gốc ở dưới cùng";
   $("result").innerHTML = `<div class="big">${verdict}${st.c.name} <span class="small">(${st.c.symbol})</span></div>` +
-    `<div class="small">Các nốt: <b>${notes}</b> · ${invTxt}</div><div class="desc">${st.c.q.desc}</div>`;
+    `<div class="small">Các nốt: <b>${notes}</b> · ${invTxt}</div>` +
+    (pressed && guess !== right ? `<div class="small no">Bạn bấm: ${pressed.map(m => label(spellMidi(m, 1))).join(" – ")}</div>` : "") +
+    `<div class="desc">${st.c.q.desc}</div>`;
   [...$("answers").children].forEach((b, i) => {
     b.disabled = true;
     if (i === right) b.className = "right"; else if (i === guess) b.className = "wrong";
   });
   renderChord(); drawKeyboard(chordMidis());
-  if ($("autoSound").checked) playChord();
+  if ($("autoSound").checked && !(pressed && guess === right)) playChord();
   scheduleAuto(newChord, 3000);
 }
 
@@ -1084,6 +1104,93 @@ function revealSym(guess) {
   scheduleAuto(newSymbol, 4000);
 }
 
+// ===================== Kết nối đàn qua MIDI (Web MIDI) =====================
+// Học nốt: bấm đúng phím (mặc định phải đúng quãng tám). Luyện nghe: bấm phím đúng âm.
+// Hợp âm: bấm đủ các nốt của hợp âm (thể đảo nào cũng được).
+const midi = { access: null, held: new Set(), names: [] };
+const mod12 = x => ((x % 12) + 12) % 12;
+const WHITE_LI = { 0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6 };
+// Đặt tên phím đàn theo nốt nhạc; phím đen dùng ♭ nếu prefer = -1, ngược lại dùng ♯
+function spellMidi(m, prefer) {
+  const pc = mod12(m);
+  if (pc in WHITE_LI) return { li: WHITE_LI[pc], acc: 0 };
+  return prefer === -1 ? { li: WHITE_LI[pc + 1], acc: -1 } : { li: WHITE_LI[pc - 1], acc: 1 };
+}
+const midiOn = () => midi.names.length > 0;
+
+function setMidiStatus(text, kind) {
+  const s = $("midiStatus");
+  s.textContent = text;
+  s.className = "midistatus " + (kind || "");
+}
+function updateMidiUI() {
+  $("midiBtn").textContent = midiOn() ? "🎹 Đàn đã kết nối" : "🎹 Kết nối đàn (MIDI)";
+  $("midiBtn").classList.toggle("on", midiOn());
+  $("optOct").style.display = midiOn() && state.phase === "note" ? "" : "none";
+  $("midiBar").style.display = state.phase === "sym" ? "none" : "";
+  if (state.phase) $("hint").textContent = HINTS[state.phase] +
+    (accOn() && VIEWS[state.phase].includes("accSel") ? HINT_ACC : "") +
+    (midiOn() && state.phase !== "sym" ? " · 🎹 Bấm phím trên đàn để trả lời" : "");
+}
+async function connectMidi(auto) {
+  if (!navigator.requestMIDIAccess) {
+    if (!auto) setMidiStatus("Trình duyệt này chưa hỗ trợ MIDI. Hãy dùng Chrome hoặc Edge trên máy tính / Android.", "bad");
+    return;
+  }
+  try {
+    midi.access = await navigator.requestMIDIAccess();
+    midi.access.onstatechange = bindMidiInputs;
+    bindMidiInputs();
+    lsSet("midiOn", true);
+  } catch (e) {
+    if (!auto) setMidiStatus("Chưa được cấp quyền dùng MIDI. Hãy bấm “Cho phép” khi trình duyệt hỏi.", "bad");
+  }
+}
+function bindMidiInputs() {
+  const ins = [...midi.access.inputs.values()].filter(i => i.state === "connected");
+  ins.forEach(i => { i.onmidimessage = onMidiMessage; });
+  midi.names = ins.map(i => i.name);
+  if (midiOn()) setMidiStatus("Đã kết nối: " + midi.names.join(", "), "ok");
+  else setMidiStatus("Chưa thấy đàn. Cắm dây MIDI/USB và bật đàn lên.", "");
+  updateMidiUI();
+}
+function onMidiMessage(e) {
+  const [st, note, vel] = e.data, cmd = st & 0xf0;
+  if (cmd === 0x90 && vel > 0) midiNoteOn(note);
+  else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) { midi.held.delete(note); drawKeyboard(state.kbdHl); }
+}
+function midiNoteOn(m) {
+  midi.held.add(m);
+  drawKeyboard(state.kbdHl);
+  const p = state.phase;
+  if (p === "note") midiAnswerNote(m);
+  else if (p === "ear") midiAnswerEar(m);
+  else if (p === "chord") midiAnswerChord();
+}
+function midiAnswerNote(m) {
+  if (state.revealed) return;
+  const it = state.notes[state.idx];
+  if (!it) return;
+  const target = midiOf(it.d, it.acc);
+  const ok = $("midiAnyOct").checked ? mod12(m - target) === 0 : m === target;
+  const g = ok ? { li: it.d % 7, acc: it.acc, midi: m, ok: true } : { ...spellMidi(m, it.acc), midi: m, ok: false };
+  answerNote(g);
+}
+function midiAnswerEar(m) {
+  const e = state.ear;
+  if (!e || e.revealed) return;
+  const target = midiOf(e.d, e.acc);
+  revealEar(mod12(m - target) === 0 ? { li: e.d % 7, acc: e.acc, midi: m, ok: true } : { ...spellMidi(m, e.acc), midi: m, ok: false });
+}
+function midiAnswerChord() {
+  const st = state.chord;
+  if (!st || st.revealed) return;
+  const pcs = new Set([...midi.held].map(mod12)), want = new Set(st.c.pcs);
+  if (pcs.size < want.size) return; // chờ bấm đủ số nốt
+  const ok = pcs.size === want.size && [...want].every(p => pcs.has(p));
+  revealChord(ok ? st.choices.indexOf(st.c) : -1, [...midi.held].sort((a, b) => a - b));
+}
+
 // ===================== Sự kiện =====================
 MODES.forEach(m => {
   const b = document.createElement("button");
@@ -1104,7 +1211,7 @@ buildAccSel();
 initChordOpts();
 
 // Ghi nhớ các tùy chọn
-["ledger", "acc", "autoSound", "earRef", "timer"].forEach(id => {
+["ledger", "acc", "autoSound", "earRef", "timer", "midiAnyOct"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
@@ -1151,6 +1258,8 @@ function rerender() {
 }
 
 setMode("treble"); // luôn mở app ở chế độ Khóa Sol
+$("midiBtn").onclick = () => connectMidi(false);
+if (lsGet("midiOn", false)) connectMidi(true); // lần trước đã kết nối thì tự kết nối lại
 
 // Tải font ký hiệu âm nhạc xong thì đo và vẽ lại cho chuẩn
 if (document.fonts && document.fonts.load) {
