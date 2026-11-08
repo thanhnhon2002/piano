@@ -177,7 +177,9 @@
   @keyframes spin { 0% { transform: scale(.6) rotate(-90deg); } 35% { transform: scale(1.2) rotate(15deg); } 50%, 100% { transform: scale(1) rotate(0); } }
   @media (prefers-reduced-motion: reduce) { .burst, .burst .word, .burst .emoji, .flame.on { animation-duration: .01s; } }
   .stats .best b { color: var(--key-hl); }
-  .stats .best.timed, .stats .best.timed b { color: var(--bad); }
+  .stats .best.timed b { color: var(--bad); } /* chữ màu thường, chỉ con số màu đỏ */
+  .stats .sic { font-size: 1.35em; vertical-align: -0.12em; display: inline-block; }
+  .stats .best.new .sic { animation: pop .6s ease; }
   .stats .best.new { color: var(--good); animation: pop .6s ease; }
   .stats .best.new b, .stats .best.timed.new, .stats .best.timed.new b { color: var(--good); }
   @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
@@ -252,8 +254,8 @@
 
   <div class="stats" id="stats">
     <span title="Số câu đúng liên tiếp hiện tại">Điểm hiện tại: <b id="sStreak">0</b><span class="flame" id="sFlame"></span></span>
-    <span class="best" id="sBestWrap" title="Điểm cao nhất khi không đếm giờ (lưu trên máy bạn, riêng từng chế độ)"><span class="lbl">🏆 Kỷ lục thường: </span><b id="sBest">0</b></span>
-    <span class="best timed" id="sBestTWrap" title="Điểm cao nhất khi bật đếm giờ (lưu trên máy bạn, riêng từng chế độ)"><span class="lbl">⏱ Kỷ lục đếm giờ: </span><b id="sBestT">0</b></span>
+    <span class="best" id="sBestWrap" title="Điểm cao nhất khi không đếm giờ (lưu trên máy bạn, riêng từng chế độ)"><span class="lbl"><span class="sic">🏆</span> Kỷ lục thường: </span><b id="sBest">0</b></span>
+    <span class="best timed" id="sBestTWrap" title="Điểm cao nhất khi bật đếm giờ (lưu trên máy bạn, riêng từng chế độ)"><span class="lbl"><span class="sic">⚡</span> Kỷ lục đếm giờ: </span><b id="sBestT">0</b></span>
   </div>
   <div class="keys-hint" id="hint"></div>
   <footer class="author">Tác giả: <b>ThanhNhon</b>
@@ -593,13 +595,13 @@ function view(name) {
   updateMidiUI();
 }
 // Kỷ lục (điểm = số câu đúng liên tiếp) lưu trên máy, riêng từng chế độ; tách "thường" và "đếm giờ"
-const BEST_LABELS = { sBestWrap: "🏆 Kỷ lục thường: ", sBestTWrap: "⏱ Kỷ lục đếm giờ: " };
+const BEST_LABELS = { sBestWrap: '<span class="sic">🏆</span> Kỷ lục thường: ', sBestTWrap: '<span class="sic">⚡</span> Kỷ lục đếm giờ: ' };
 const isTimed = () => typeof timerOn === "function" && timerOn();
 const bestKeyOf = timed => (timed ? "bestStreakTimed_" : "bestStreak_") + state.mode;
 const getBest = (timed = isTimed()) => +lsGet(bestKeyOf(timed), 0) || 0;
 const bestWrap = (timed = isTimed()) => $(timed ? "sBestTWrap" : "sBestWrap");
 function clearNewRecord() {
-  for (const id in BEST_LABELS) { const w = $(id); w.classList.remove("new"); w.querySelector(".lbl").textContent = BEST_LABELS[id]; }
+  for (const id in BEST_LABELS) { const w = $(id); w.classList.remove("new"); w.querySelector(".lbl").innerHTML = BEST_LABELS[id]; }
 }
 function resetStats() {
   state.good = state.bad = state.streak = 0;
@@ -716,7 +718,7 @@ function score(right) {
     const w = bestWrap(timed);
     if (prevBest > 0 && !w.classList.contains("new")) {
       w.classList.add("new");
-      w.querySelector(".lbl").textContent = timed ? "⏱ Kỷ lục đếm giờ mới! " : "🏆 Kỷ lục mới! ";
+      w.querySelector(".lbl").innerHTML = timed ? '<span class="sic">⚡</span> Kỷ lục đếm giờ mới! ' : '<span class="sic">🏆</span> Kỷ lục mới! ';
       if (prevBest >= 5) { celebrateRecord(state.streak); celebrated = true; } // vượt kỷ lục đáng kể
     }
   }
