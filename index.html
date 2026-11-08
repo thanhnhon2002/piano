@@ -167,7 +167,7 @@
   .burst .word { font-size: 1.15rem; font-weight: 900; letter-spacing: .03em; line-height: 1;
     background: linear-gradient(90deg, var(--c1), var(--c2), var(--c1)); background-size: 200% 100%;
     -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 1.2s linear infinite; }
-  .burst .sub { font-size: .85rem; font-weight: 600; color: var(--muted); }
+  .burst .sub { font-size: 1.05rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
   @keyframes toast {
     0% { opacity: 0; transform: translate(-50%, -24px) scale(.9); }
     14% { opacity: 1; transform: translate(-50%, 0) scale(1.04); }
@@ -719,12 +719,12 @@ function celebrateStreak(n) {
   const m = milestoneOf(n);
   if (!m) return;
   const [, word, emoji, c1, c2] = m, tier = MILESTONES.indexOf(m);
-  const t = showBurst(word, emoji, `${n} câu đúng liên tiếp`, c1, c2);
+  const t = showBurst(word, emoji, `x${n}`, c1, c2);
   launchConfetti(18 + tier * 6, [c1, c2, "#ffffff", "#fde047"], t);
   celebrateSound(tier >= 3);
 }
 function celebrateRecord(n) {
-  const t = showBurst("KỶ LỤC MỚI!", "🏆", `${n} điểm`, "#fde047", "#f59e0b");
+  const t = showBurst("KỶ LỤC MỚI!", "🏆", `x${n}`, "#fde047", "#f59e0b");
   launchConfetti(40, ["#fde047", "#facc15", "#f59e0b", "#fff7ae"], t);
   celebrateSound(true);
 }
