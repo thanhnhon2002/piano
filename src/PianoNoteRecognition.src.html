@@ -162,7 +162,7 @@
     background: color-mix(in srgb, var(--card) 88%, transparent); border: 1px solid var(--c1);
     box-shadow: 0 6px 24px rgba(0, 0, 0, .25), 0 0 0 3px color-mix(in srgb, var(--c1) 22%, transparent);
     backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    animation: toast 3s cubic-bezier(.2, .9, .3, 1.15) forwards; }
+    animation: toast 2.6s cubic-bezier(.2, .9, .3, 1.15) forwards; }
   .burst .emoji { font-size: 1.35rem; line-height: 1; animation: spin .7s ease-out; }
   .burst .word { font-size: 1.15rem; font-weight: 900; letter-spacing: .03em; line-height: 1;
     background: linear-gradient(90deg, var(--c1), var(--c2), var(--c1)); background-size: 200% 100%;
@@ -170,9 +170,9 @@
   .burst .sub { font-size: 1.05rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
   @keyframes toast {
     0% { opacity: 0; transform: translate(-50%, 12px) scale(.85); }
-    8% { opacity: 1; transform: translate(-50%, 0) scale(1.06); }
-    14% { transform: translate(-50%, 0) scale(1); }
-    86% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    9% { opacity: 1; transform: translate(-50%, 0) scale(1.06); }
+    16% { transform: translate(-50%, 0) scale(1); }      /* ~0,4 giây hiện lên */
+    85% { opacity: 1; transform: translate(-50%, 0) scale(1); } /* đứng yên ~1,8 giây */
     100% { opacity: 0; transform: translate(-50%, -14px) scale(.96); }
   }
   @keyframes shine { to { background-position: 200% 0; } }
@@ -648,7 +648,7 @@ function showBurst(word, emoji, sub, c1, c2) {
   const r = $("result").getBoundingClientRect(), h = b.offsetHeight || 40;
   b.style.left = (r.left + r.width / 2) + "px";
   b.style.top = Math.min(Math.max(10, r.top - h - 10), innerHeight - h - 10) + "px";
-  setTimeout(() => b.remove(), 3100);
+  setTimeout(() => b.remove(), 2700);
   return b;
 }
 // Pháo giấy nhỏ tỏa ra quanh thẻ thông báo (không bay khắp màn hình)
