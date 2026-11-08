@@ -176,7 +176,6 @@
     <label class="chk" id="optAcc" title="Thăng ♯, giáng ♭, bình ♮, hóa biểu đầu khuông và dấu hóa đánh lừa"><input type="checkbox" id="acc"> Dấu hóa ♯ ♭ ♮</label>
     <label class="chk" id="optTimer"><input type="checkbox" id="timer"> ⏱ Đếm giờ</label>
     <label class="chk" id="optSound"><input type="checkbox" id="autoSound" checked> Phát âm thanh</label>
-    <label class="chk" id="optRef"><input type="checkbox" id="earRef" checked> Phát Đô chuẩn trước</label>
   </div>
   <div class="settings" id="noteClefOpts">
     <div class="seg" id="noteClef">
@@ -506,15 +505,15 @@ const state = { mode: "both", clef: T, d: 30, acc: 0, revealed: false, good: 0, 
 const PARTS = ["noteClefOpts", "chordOpts", "timerBox", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"];
 const VIEWS = {
   note: ["noteClefOpts", "timerBox", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
-  ear: ["staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
+  ear: ["staff", "result", "answers", "actions", "kbd", "stats"],
   sym: ["staff", "result", "answers", "actions", "stats"],
   chord: ["chordOpts", "staff", "result", "answers", "actions", "kbd", "stats"],
 };
 const OPTS = {
   note: ["optLedger", "optOtt", "optAcc", "optTimer", "optSound"], chord: ["optAcc", "optSound"],
-  ear: ["optAcc", "optRef"], sym: [],
+  ear: [], sym: [],
 };
-const ALL_OPTS = ["optLedger", "optOtt", "optAcc", "optTimer", "optSound", "optRef"];
+const ALL_OPTS = ["optLedger", "optOtt", "optAcc", "optTimer", "optSound"];
 
 // --- Tự chuyển sang câu tiếp sau khi hiện kết quả
 const AUTO_MS = 1000;
@@ -895,17 +894,14 @@ function revealNote(guess, timeout) {
 }
 
 // ===================== Chế độ luyện nghe =====================
-const EAR_LO = 28, EAR_HI = 35; // Đô4 → Đô5
-function enharmonic(d, acc) {
-  if (acc === 1) return SOLFEGE[(d + 1) % 7] + "♭";
-  if (acc === -1) return SOLFEGE[(d + 6) % 7] + "♯";
-  return "";
-}
+// Phát 1 nốt (lặp 3 lần, cách nhau 1 giây) trong 7 nốt Đô4 → Si4; chọn đúng tên nốt.
+// Bấm trên đàn MIDI thì phải đúng chính xác phím.
+const EAR_LO = 28, EAR_HI = 34; // Đô4 → Si4
+const EAR_REPEAT = 3, EAR_GAP = 1;
 function newEar() {
-  const prev = state.ear; let d, acc;
-  do { d = EAR_LO + rnd(EAR_HI - EAR_LO + 1); acc = randAcc(d, 0.4); }
-  while (prev && midiOf(d, acc) === midiOf(prev.d, prev.acc));
-  state.ear = { d, acc, revealed: false }; clearAuto();
+  const prev = state.ear; let d;
+  do { d = EAR_LO + rnd(EAR_HI - EAR_LO + 1); } while (prev && d === prev.d);
+  state.ear = { d, acc: 0, revealed: false }; clearAuto();
   $("result").innerHTML = '<span class="hint">🎧 Nghe và đoán nốt · bấm 🔊 để nghe lại</span>';
   resetAnswerButtons();
   renderEar(); drawKeyboard(null);
@@ -914,7 +910,7 @@ function newEar() {
 function playEar() {
   const e = state.ear; if (!e) return;
   const m = midiOf(e.d, e.acc);
-  playSeq($("earRef").checked ? [[60, 0], [m, 1.1]] : [[m, 0]]);
+  playSeq(Array.from({ length: EAR_REPEAT }, (_, i) => [m, i * EAR_GAP]));
 }
 function renderEar() {
   const svg = $("staff"), e = state.ear; svg.innerHTML = "";
@@ -925,20 +921,19 @@ function renderEar() {
 function revealEar(guess) {
   const e = state.ear; if (!e || e.revealed) return;
   e.revealed = true;
-  const target = midiOf(e.d, e.acc), n = nameOf(e.d, e.acc), alt = enharmonic(e.d, e.acc);
+  const target = midiOf(e.d, e.acc), n = nameOf(e.d, e.acc);
+  if (guess && guess.midi == null) guess = { li: guess.li, acc: 0 }; // nút trên màn hình: chỉ 7 nốt tự nhiên
   let verdict = "", right = false;
   if (guess) {
-    right = guess.ok !== undefined ? guess.ok // bấm trên đàn MIDI: phải đúng phím
-      : ((midiOf(EAR_LO + guess.li, guess.acc) - target) % 12 + 12) % 12 === 0; // chọn trên màn hình: chấp nhận tên đồng âm
+    right = guess.ok !== undefined ? guess.ok : guess.li === e.d % 7; // đàn MIDI: phải đúng phím
     score(right);
     verdict = right ? '<span class="ok">✔ Chính xác!</span> ' : '<span class="no">✘ Chưa đúng.</span> ';
   }
-  $("result").innerHTML = `<div class="big">${verdict}${n.vi}${alt ? ` <span class="small">= ${alt}</span>` : ""}</div>` +
+  $("result").innerHTML = `<div class="big">${verdict}${n.vi}</div>` +
     `<div class="small">${n.en}${guess && !right ? ` · bạn chọn ${label(guess)}` : ""}</div>`;
-  setAccSel(guess && right ? guess.acc : e.acc);
-  markAnswers(guess && right ? guess.li : n.li, guess, right);
+  markAnswers(n.li, guess, right);
   renderEar(); drawKeyboard(target);
-  play(target);
+  if (!(guess && guess.midi != null && right)) play(target); // bấm đúng trên đàn thì đàn đã tự kêu
   scheduleAuto(newEar, 2000);
 }
 
@@ -1358,7 +1353,7 @@ $("ledger").addEventListener("change", () => { lsSet("opt_ledgerN", +$("ledger")
 $("ottava").addEventListener("change", () => { if (state.phase === "note") renderNote(); });
 $("acc").checked = !!lsGet("opt_accAll", (+lsGet("opt_accLevel", 0) || 0) > 0 || !!lsGet("opt_acc", false));
 $("acc").addEventListener("change", () => lsSet("opt_accAll", $("acc").checked));
-["autoSound", "earRef", "timer", "ottava"].forEach(id => {
+["autoSound", "timer", "ottava"].forEach(id => {
   const v = lsGet("opt_" + id, null);
   if (v !== null) $(id).checked = v;
   $(id).addEventListener("change", () => lsSet("opt_" + id, $(id).checked));
@@ -1374,7 +1369,7 @@ document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase(), p = state.phase;
   const noteIdx = k >= "1" && k <= "7" ? +k - 1 : LETTER_KEY[k];
-  if ((p === "note" || p === "ear") && accOn()) {
+  if (p === "note" && accOn()) {
     const v = k === "-" || k === "_" ? -1 : k === "+" || k === "=" || k === "#" ? 1 : k === "0" ? 0 : null;
     if (v !== null) { e.preventDefault(); setAccSel(state.accSel === v ? 0 : v); return; }
   }

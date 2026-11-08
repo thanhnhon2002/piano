@@ -10,7 +10,7 @@
 |---|---|
 | 𝄞𝄢 Học nốt | Đoán tên nốt, chọn **Khóa Sol**, **Khóa Fa** hoặc **Hai khóa** (xen kẽ ngẫu nhiên). Cả 3 đều có đếm giờ (bật/tắt bằng ô ⏱ Đếm giờ). Chọn **tối đa 1–5 nốt**: mỗi lượt hiện ngẫu nhiên từ 1 đến số đó, đọc lần lượt từ trái sang phải. Đếm giờ: bắt đầu 20 giây/nốt, đúng hết bớt 0,5 giây (tối thiểu 1 giây), sai hoặc hết giờ về lại 20 giây; khuông từ 2 nốt trở lên có thời gian = thời gian 1 nốt × số nốt × 80% |
 | ♬ Hợp âm | Nhận biết hợp âm trưởng, thứ, giảm, tăng, hợp âm 7 và các thể đảo |
-| 🎧 Luyện nghe | Nghe nốt Đô chuẩn rồi nốt bí ẩn, đoán tên nốt |
+| 🎧 Luyện nghe | Nghe 1 nốt (phát 3 lần, cách nhau 1 giây) trong 7 nốt Đô4 → Si4, chọn đúng tên nốt |
 | ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |
 
 Tùy chọn: số dòng kẻ phụ (0–5, áp dụng cho cả trên và dưới khuông; từ 4 dòng có thể viết gọn bằng ký hiệu quãng tám 8va/8vb), dấu hóa (bật lên là có tất cả: ♯ ♭ ngẫu nhiên, hóa biểu ngẫu nhiên đầu khuông, dấu bình ♮ và dấu hóa “đánh lừa”), phát âm thanh piano thật, tự chuyển câu (nút ⏸ Dừng tự chuyển / ▶ Tự chuyển).
