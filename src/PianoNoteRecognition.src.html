@@ -157,24 +157,26 @@
   /* Hiệu ứng khi đạt mốc chuỗi: nằm đè lên trên, không chặn thao tác, không làm xê dịch bố cục */
   .fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
   .fx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .burst { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); text-align: center;
-    animation: burst 1.9s cubic-bezier(.2, .9, .3, 1.2) forwards; white-space: nowrap; }
-  .burst .word { font-size: clamp(2.6rem, 11vw, 5.2rem); font-weight: 900; letter-spacing: .02em; line-height: 1;
+  .burst { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); white-space: nowrap;
+    display: flex; align-items: center; gap: 8px; padding: 7px 16px 7px 12px; border-radius: 99px;
+    background: color-mix(in srgb, var(--card) 88%, transparent); border: 1px solid var(--c1);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .25), 0 0 0 3px color-mix(in srgb, var(--c1) 22%, transparent);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    animation: toast 1.6s cubic-bezier(.2, .9, .3, 1.15) forwards; }
+  .burst .emoji { font-size: 1.35rem; line-height: 1; animation: spin .7s ease-out; }
+  .burst .word { font-size: 1.15rem; font-weight: 900; letter-spacing: .03em; line-height: 1;
     background: linear-gradient(90deg, var(--c1), var(--c2), var(--c1)); background-size: 200% 100%;
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 4px 14px rgba(0, 0, 0, .35)); animation: shine 1.2s linear infinite; }
-  .burst .emoji { font-size: clamp(2rem, 8vw, 3.6rem); display: block; margin-bottom: 4px; animation: spin 1.9s ease-out; }
-  .burst .sub { margin-top: 8px; font-size: clamp(.95rem, 3.6vw, 1.2rem); font-weight: 700; color: #fff;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
-  @keyframes burst {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-8deg); }
-    18% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(2deg); }
-    30% { transform: translate(-50%, -50%) scale(1) rotate(0); }
-    75% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -80%) scale(.92); }
+    -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 1.2s linear infinite; }
+  .burst .sub { font-size: .85rem; font-weight: 600; color: var(--muted); }
+  @keyframes toast {
+    0% { opacity: 0; transform: translate(-50%, -24px) scale(.9); }
+    14% { opacity: 1; transform: translate(-50%, 0) scale(1.04); }
+    24% { transform: translate(-50%, 0) scale(1); }
+    80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -16px) scale(.96); }
   }
   @keyframes shine { to { background-position: 200% 0; } }
-  @keyframes spin { 0% { transform: scale(.6) rotate(-90deg); } 35% { transform: scale(1.2) rotate(15deg); } 50%, 100% { transform: scale(1) rotate(0); } }
+  @keyframes spin { 0% { transform: scale(.6) rotate(-90deg); } 60% { transform: scale(1.25) rotate(10deg); } 100% { transform: scale(1) rotate(0); } }
   @media (prefers-reduced-motion: reduce) { .burst, .burst .word, .burst .emoji, .flame.on { animation-duration: .01s; } }
   .stats .best b { color: var(--key-hl); }
   .stats .best.timed b { color: var(--bad); } /* chữ màu thường, chỉ con số màu đỏ */
@@ -640,25 +642,26 @@ function showBurst(word, emoji, sub, c1, c2) {
   const b = document.createElement("div");
   b.className = "burst";
   b.style.setProperty("--c1", c1); b.style.setProperty("--c2", c2);
-  b.innerHTML = `<span class="emoji">${emoji}</span><div class="word">${word}</div><div class="sub">${sub}</div>`;
+  b.innerHTML = `<span class="emoji">${emoji}</span><span class="word">${word}</span><span class="sub">${sub}</span>`;
   $("fx").appendChild(b);
-  setTimeout(() => b.remove(), 2000);
+  setTimeout(() => b.remove(), 1700);
+  return b;
 }
-// Pháo giấy (confetti) bắn từ hai bên màn hình
+// Pháo giấy nhỏ tỏa ra quanh thẻ thông báo (không bay khắp màn hình)
 let confetti = [], confettiRAF = 0;
-function launchConfetti(count, colors) {
-  if (reduceMotion()) return;
+function launchConfetti(count, colors, from) {
+  if (reduceMotion() || !from) return;
   const cv = $("fxCanvas"), dpr = window.devicePixelRatio || 1;
   cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+  const r = from.getBoundingClientRect(), cx = (r.left + r.width / 2) * dpr, cy = (r.top + r.height / 2) * dpr;
   for (let i = 0; i < count; i++) {
-    const left = i % 2 === 0, ang = (left ? -60 : -120) + (Math.random() - 0.5) * 50;
-    const sp = (9 + Math.random() * 9) * dpr, rad = ang * Math.PI / 180;
+    const ang = Math.random() * Math.PI * 2, sp = (1.5 + Math.random() * 3.5) * dpr;
     confetti.push({
-      x: (left ? 0.02 : 0.98) * cv.width, y: cv.height * (0.75 + Math.random() * 0.2),
-      vx: Math.cos(rad) * sp, vy: Math.sin(rad) * sp,
-      w: (6 + Math.random() * 6) * dpr, h: (3 + Math.random() * 5) * dpr,
+      x: cx + (Math.random() - 0.5) * r.width * dpr * 0.8, y: cy,
+      vx: Math.cos(ang) * sp * 1.4, vy: Math.sin(ang) * sp * 0.8 - 1.2 * dpr,
+      w: (3 + Math.random() * 4) * dpr, h: (2 + Math.random() * 3) * dpr,
       rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.4,
-      color: colors[i % colors.length], life: 0, shape: Math.random() < 0.3 ? 1 : 0,
+      color: colors[i % colors.length], life: 0, shape: Math.random() < 0.35 ? 1 : 0,
     });
   }
   if (!confettiRAF) confettiRAF = requestAnimationFrame(stepConfetti);
@@ -666,11 +669,12 @@ function launchConfetti(count, colors) {
 function stepConfetti() {
   const cv = $("fxCanvas"), g = cv.getContext("2d"), dpr = window.devicePixelRatio || 1;
   g.clearRect(0, 0, cv.width, cv.height);
-  confetti = confetti.filter(p => p.life < 170 && p.y < cv.height + 40);
+  const LIFE = 75;
+  confetti = confetti.filter(p => p.life < LIFE && p.y < cv.height + 40);
   for (const p of confetti) {
-    p.life++; p.vy += 0.32 * dpr; p.vx *= 0.99; p.vy *= 0.99;
+    p.life++; p.vy += 0.12 * dpr; p.vx *= 0.97; p.vy *= 0.98;
     p.x += p.vx; p.y += p.vy; p.rot += p.vr;
-    g.save(); g.globalAlpha = Math.min(1, (170 - p.life) / 40);
+    g.save(); g.globalAlpha = Math.min(1, (LIFE - p.life) / 25);
     g.translate(p.x, p.y); g.rotate(p.rot); g.fillStyle = p.color;
     if (p.shape) { g.beginPath(); g.arc(0, 0, p.h * 0.7, 0, 6.29); g.fill(); }
     else g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.life * 0.15)) + 1);
@@ -688,13 +692,13 @@ function celebrateStreak(n) {
   const m = milestoneOf(n);
   if (!m) return;
   const [, word, emoji, c1, c2] = m, tier = MILESTONES.indexOf(m);
-  showBurst(word, emoji, `${n} câu đúng liên tiếp`, c1, c2);
-  launchConfetti(50 + tier * 25, [c1, c2, "#ffffff", "#fde047", "#60a5fa", "#f472b6"]);
+  const t = showBurst(word, emoji, `${n} câu đúng liên tiếp`, c1, c2);
+  launchConfetti(18 + tier * 6, [c1, c2, "#ffffff", "#fde047"], t);
   celebrateSound(tier >= 3);
 }
 function celebrateRecord(n) {
-  showBurst("KỶ LỤC MỚI!", "🏆", `Chuỗi ${n} câu đúng – vượt kỷ lục cũ`, "#fde047", "#f59e0b");
-  launchConfetti(140, ["#fde047", "#facc15", "#f59e0b", "#fff7ae", "#ffffff"]);
+  const t = showBurst("KỶ LỤC MỚI!", "🏆", `${n} điểm`, "#fde047", "#f59e0b");
+  launchConfetti(40, ["#fde047", "#facc15", "#f59e0b", "#fff7ae"], t);
   celebrateSound(true);
 }
 function updateFlame() {
