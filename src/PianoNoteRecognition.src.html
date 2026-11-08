@@ -150,6 +150,32 @@
   .stats { display: flex; justify-content: center; gap: 18px; margin: 14px 0 6px; color: var(--muted); }
   .stats b { color: var(--ink); }
   .stats { flex-wrap: wrap; }
+  .flame { display: inline-block; margin-left: 3px; transform-origin: 50% 90%; }
+  .flame.on { animation: flicker .9s ease-in-out infinite alternate; }
+  @keyframes flicker { from { transform: scale(1) rotate(-4deg); } to { transform: scale(1.12) rotate(4deg); } }
+
+  /* Hiệu ứng khi đạt mốc chuỗi: nằm đè lên trên, không chặn thao tác, không làm xê dịch bố cục */
+  .fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+  .fx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .burst { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); text-align: center;
+    animation: burst 1.9s cubic-bezier(.2, .9, .3, 1.2) forwards; white-space: nowrap; }
+  .burst .word { font-size: clamp(2.6rem, 11vw, 5.2rem); font-weight: 900; letter-spacing: .02em; line-height: 1;
+    background: linear-gradient(90deg, var(--c1), var(--c2), var(--c1)); background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 14px rgba(0, 0, 0, .35)); animation: shine 1.2s linear infinite; }
+  .burst .emoji { font-size: clamp(2rem, 8vw, 3.6rem); display: block; margin-bottom: 4px; animation: spin 1.9s ease-out; }
+  .burst .sub { margin-top: 8px; font-size: clamp(.95rem, 3.6vw, 1.2rem); font-weight: 700; color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
+  @keyframes burst {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-8deg); }
+    18% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(2deg); }
+    30% { transform: translate(-50%, -50%) scale(1) rotate(0); }
+    75% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -80%) scale(.92); }
+  }
+  @keyframes shine { to { background-position: 200% 0; } }
+  @keyframes spin { 0% { transform: scale(.6) rotate(-90deg); } 35% { transform: scale(1.2) rotate(15deg); } 50%, 100% { transform: scale(1) rotate(0); } }
+  @media (prefers-reduced-motion: reduce) { .burst, .burst .word, .burst .emoji, .flame.on { animation-duration: .01s; } }
   .stats .best b { color: var(--key-hl); }
   .stats .best.new { color: var(--good); animation: pop .6s ease; }
   .stats .best.new b { color: var(--good); }
@@ -165,6 +191,7 @@
 </style>
 </head>
 <body>
+<div class="fx" id="fx" aria-hidden="true"><canvas id="fxCanvas"></canvas></div>
 <div class="app">
   <h1><span class="appname">🎹 Học Piano</span><span class="visitors" id="visitors" hidden></span></h1>
 
@@ -225,7 +252,7 @@
   <div class="stats" id="stats">
     <span>Đúng: <b id="sGood">0</b></span>
     <span>Sai: <b id="sBad">0</b></span>
-    <span>Chuỗi: <b id="sStreak">0</b></span>
+    <span>Chuỗi: <b id="sStreak">0</b><span class="flame" id="sFlame"></span></span>
     <span class="best" id="sBestWrap" title="Chuỗi đúng liên tiếp cao nhất của chế độ này (lưu trên máy bạn)">🏆 Kỷ lục: <b id="sBest">0</b></span>
   </div>
   <div class="keys-hint" id="hint"></div>
@@ -576,22 +603,114 @@ const getBest = () => +lsGet(bestKeyOf(), 0) || 0;
 function updateStats() {
   $("sGood").textContent = state.good; $("sBad").textContent = state.bad; $("sStreak").textContent = state.streak;
   $("sBest").textContent = getBest();
+  updateFlame();
 }
+// ===================== Hiệu ứng khi đạt mốc chuỗi đúng =====================
+const MILESTONES = [
+  [5, "NICE!", "👍", "#4ade80", "#22d3ee"],
+  [10, "GREAT!", "🔥", "#fb923c", "#facc15"],
+  [15, "AWESOME!", "⭐", "#facc15", "#f472b6"],
+  [20, "WOW!", "🚀", "#60a5fa", "#a78bfa"],
+  [30, "AMAZING!", "🌟", "#f472b6", "#facc15"],
+  [50, "UNSTOPPABLE!", "⚡", "#22d3ee", "#a3e635"],
+  [75, "LEGENDARY!", "👑", "#fbbf24", "#f97316"],
+  [100, "GODLIKE!", "🎹", "#e879f9", "#38bdf8"],
+];
+// Mốc: 5, 10, 15, 20, 30, 50, 75, 100 rồi cứ mỗi 50 câu (150, 200, …)
+function milestoneOf(n) {
+  const m = MILESTONES.find(x => x[0] === n);
+  if (m) return m;
+  if (n > 100 && n % 50 === 0) return MILESTONES[MILESTONES.length - 1];
+  return null;
+}
+const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+function showBurst(word, emoji, sub, c1, c2) {
+  document.querySelectorAll(".burst").forEach(b => b.remove());
+  const b = document.createElement("div");
+  b.className = "burst";
+  b.style.setProperty("--c1", c1); b.style.setProperty("--c2", c2);
+  b.innerHTML = `<span class="emoji">${emoji}</span><div class="word">${word}</div><div class="sub">${sub}</div>`;
+  $("fx").appendChild(b);
+  setTimeout(() => b.remove(), 2000);
+}
+// Pháo giấy (confetti) bắn từ hai bên màn hình
+let confetti = [], confettiRAF = 0;
+function launchConfetti(count, colors) {
+  if (reduceMotion()) return;
+  const cv = $("fxCanvas"), dpr = window.devicePixelRatio || 1;
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+  for (let i = 0; i < count; i++) {
+    const left = i % 2 === 0, ang = (left ? -60 : -120) + (Math.random() - 0.5) * 50;
+    const sp = (9 + Math.random() * 9) * dpr, rad = ang * Math.PI / 180;
+    confetti.push({
+      x: (left ? 0.02 : 0.98) * cv.width, y: cv.height * (0.75 + Math.random() * 0.2),
+      vx: Math.cos(rad) * sp, vy: Math.sin(rad) * sp,
+      w: (6 + Math.random() * 6) * dpr, h: (3 + Math.random() * 5) * dpr,
+      rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.4,
+      color: colors[i % colors.length], life: 0, shape: Math.random() < 0.3 ? 1 : 0,
+    });
+  }
+  if (!confettiRAF) confettiRAF = requestAnimationFrame(stepConfetti);
+}
+function stepConfetti() {
+  const cv = $("fxCanvas"), g = cv.getContext("2d"), dpr = window.devicePixelRatio || 1;
+  g.clearRect(0, 0, cv.width, cv.height);
+  confetti = confetti.filter(p => p.life < 170 && p.y < cv.height + 40);
+  for (const p of confetti) {
+    p.life++; p.vy += 0.32 * dpr; p.vx *= 0.99; p.vy *= 0.99;
+    p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    g.save(); g.globalAlpha = Math.min(1, (170 - p.life) / 40);
+    g.translate(p.x, p.y); g.rotate(p.rot); g.fillStyle = p.color;
+    if (p.shape) { g.beginPath(); g.arc(0, 0, p.h * 0.7, 0, 6.29); g.fill(); }
+    else g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.life * 0.15)) + 1);
+    g.restore();
+  }
+  confettiRAF = confetti.length ? requestAnimationFrame(stepConfetti) : 0;
+  if (!confettiRAF) g.clearRect(0, 0, cv.width, cv.height);
+}
+function celebrateSound(big) {
+  if (!$("autoSound").checked) return;
+  const base = big ? 72 : 84, seq = [0, 4, 7, 12].map((iv, i) => [base + iv, 0.35 + i * 0.07]);
+  playSeq(seq);
+}
+function celebrateStreak(n) {
+  const m = milestoneOf(n);
+  if (!m) return;
+  const [, word, emoji, c1, c2] = m, tier = MILESTONES.indexOf(m);
+  showBurst(word, emoji, `${n} câu đúng liên tiếp`, c1, c2);
+  launchConfetti(50 + tier * 25, [c1, c2, "#ffffff", "#fde047", "#60a5fa", "#f472b6"]);
+  celebrateSound(tier >= 3);
+}
+function celebrateRecord(n) {
+  showBurst("KỶ LỤC MỚI!", "🏆", `Chuỗi ${n} câu đúng – vượt kỷ lục cũ`, "#fde047", "#f59e0b");
+  launchConfetti(140, ["#fde047", "#facc15", "#f59e0b", "#fff7ae", "#ffffff"]);
+  celebrateSound(true);
+}
+function updateFlame() {
+  const f = $("sFlame"), n = state.streak;
+  f.textContent = n >= 5 ? "🔥" : "";
+  f.classList.toggle("on", n >= 5);
+  f.style.fontSize = n >= 5 ? Math.min(1.6, 0.9 + n / 60) + "em" : "";
+}
+
 // Móc thống kê: bản web gắn window.__appTrack để đếm mức độ sử dụng; file gửi riêng không có nên không làm gì
 function track(type, data) { try { if (window.__appTrack) window.__appTrack(type, data); } catch (e) {} }
 function score(right) {
   track("answer");
   if (right) { state.good++; state.streak++; } else { state.bad++; state.streak = 0; }
   if (!right) { const w = $("sBestWrap"); w.classList.remove("new"); w.firstChild.textContent = "🏆 Kỷ lục: "; }
+  let celebrated = false;
   if (right && state.streak > getBest()) { // phá kỷ lục
-    const firstTime = getBest() === 0;
+    const prevBest = getBest();
     lsSet(bestKeyOf(), state.streak);
     const w = $("sBestWrap");
-    if (!firstTime && !w.classList.contains("new")) {
+    if (prevBest > 0 && !w.classList.contains("new")) {
       w.classList.add("new");
       w.firstChild.textContent = "🏆 Kỷ lục mới! ";
+      if (prevBest >= 5) { celebrateRecord(state.streak); celebrated = true; } // vượt kỷ lục đáng kể
     }
   }
+  if (right && !celebrated) celebrateStreak(state.streak);
   updateStats();
 }
 // Khoảng nốt theo số dòng kẻ phụ (dùng chung cho phía trên và phía dưới khuông).
