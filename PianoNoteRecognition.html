@@ -149,6 +149,11 @@
 
   .stats { display: flex; justify-content: center; gap: 18px; margin: 14px 0 6px; color: var(--muted); }
   .stats b { color: var(--ink); }
+  .stats { flex-wrap: wrap; }
+  .stats .best b { color: var(--key-hl); }
+  .stats .best.new { color: var(--good); animation: pop .6s ease; }
+  .stats .best.new b { color: var(--good); }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
   .keys-hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
   .author { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
   .author b { color: var(--ink); }
@@ -221,6 +226,7 @@
     <span>Đúng: <b id="sGood">0</b></span>
     <span>Sai: <b id="sBad">0</b></span>
     <span>Chuỗi: <b id="sStreak">0</b></span>
+    <span class="best" id="sBestWrap" title="Chuỗi đúng liên tiếp cao nhất của chế độ này (lưu trên máy bạn)">🏆 Kỷ lục: <b id="sBest">0</b></span>
   </div>
   <div class="keys-hint" id="hint"></div>
   <footer class="author">Tác giả: <b>ThanhNhon</b>
@@ -586,15 +592,33 @@ function view(name) {
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
   updateMidiUI();
 }
-function resetStats() { state.good = state.bad = state.streak = 0; updateStats(); }
+function resetStats() {
+  state.good = state.bad = state.streak = 0;
+  const w = $("sBestWrap"); w.classList.remove("new"); w.firstChild.textContent = "🏆 Kỷ lục: ";
+  updateStats();
+}
+// Kỷ lục chuỗi đúng: lưu trên máy người dùng, riêng cho từng chế độ (khóa Sol / Fa / Hai khóa / Hợp âm / Nghe / Ký hiệu)
+const bestKeyOf = () => "bestStreak_" + state.mode;
+const getBest = () => +lsGet(bestKeyOf(), 0) || 0;
 function updateStats() {
   $("sGood").textContent = state.good; $("sBad").textContent = state.bad; $("sStreak").textContent = state.streak;
+  $("sBest").textContent = getBest();
 }
 // Móc thống kê: bản web gắn window.__appTrack để đếm mức độ sử dụng; file gửi riêng không có nên không làm gì
 function track(type, data) { try { if (window.__appTrack) window.__appTrack(type, data); } catch (e) {} }
 function score(right) {
   track("answer");
   if (right) { state.good++; state.streak++; } else { state.bad++; state.streak = 0; }
+  if (!right) { const w = $("sBestWrap"); w.classList.remove("new"); w.firstChild.textContent = "🏆 Kỷ lục: "; }
+  if (right && state.streak > getBest()) { // phá kỷ lục
+    const firstTime = getBest() === 0;
+    lsSet(bestKeyOf(), state.streak);
+    const w = $("sBestWrap");
+    if (!firstTime && !w.classList.contains("new")) {
+      w.classList.add("new");
+      w.firstChild.textContent = "🏆 Kỷ lục mới! ";
+    }
+  }
   updateStats();
 }
 // Khoảng nốt theo số dòng kẻ phụ (dùng chung cho phía trên và phía dưới khuông).
