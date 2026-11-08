@@ -177,8 +177,9 @@
   @keyframes spin { 0% { transform: scale(.6) rotate(-90deg); } 35% { transform: scale(1.2) rotate(15deg); } 50%, 100% { transform: scale(1) rotate(0); } }
   @media (prefers-reduced-motion: reduce) { .burst, .burst .word, .burst .emoji, .flame.on { animation-duration: .01s; } }
   .stats .best b { color: var(--key-hl); }
+  .stats .best.timed, .stats .best.timed b { color: var(--bad); }
   .stats .best.new { color: var(--good); animation: pop .6s ease; }
-  .stats .best.new b { color: var(--good); }
+  .stats .best.new b, .stats .best.timed.new, .stats .best.timed.new b { color: var(--good); }
   @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
   .keys-hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
   .author { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -250,10 +251,9 @@
   </div>
 
   <div class="stats" id="stats">
-    <span>Đúng: <b id="sGood">0</b></span>
-    <span>Sai: <b id="sBad">0</b></span>
-    <span>Chuỗi: <b id="sStreak">0</b><span class="flame" id="sFlame"></span></span>
-    <span class="best" id="sBestWrap" title="Chuỗi đúng liên tiếp cao nhất của chế độ này (lưu trên máy bạn)">🏆 Kỷ lục: <b id="sBest">0</b></span>
+    <span title="Số câu đúng liên tiếp hiện tại">Điểm hiện tại: <b id="sStreak">0</b><span class="flame" id="sFlame"></span></span>
+    <span class="best" id="sBestWrap" title="Điểm cao nhất khi không đếm giờ (lưu trên máy bạn, riêng từng chế độ)"><span class="lbl">🏆 Kỷ lục thường: </span><b id="sBest">0</b></span>
+    <span class="best timed" id="sBestTWrap" title="Điểm cao nhất khi bật đếm giờ (lưu trên máy bạn, riêng từng chế độ)"><span class="lbl">⏱ Kỷ lục đếm giờ: </span><b id="sBestT">0</b></span>
   </div>
   <div class="keys-hint" id="hint"></div>
   <footer class="author">Tác giả: <b>ThanhNhon</b>
@@ -592,17 +592,26 @@ function view(name) {
   $("hint").textContent = HINTS[name] + (accOn() && VIEWS[name].includes("accSel") ? HINT_ACC : "");
   updateMidiUI();
 }
+// Kỷ lục (điểm = số câu đúng liên tiếp) lưu trên máy, riêng từng chế độ; tách "thường" và "đếm giờ"
+const BEST_LABELS = { sBestWrap: "🏆 Kỷ lục thường: ", sBestTWrap: "⏱ Kỷ lục đếm giờ: " };
+const isTimed = () => typeof timerOn === "function" && timerOn();
+const bestKeyOf = timed => (timed ? "bestStreakTimed_" : "bestStreak_") + state.mode;
+const getBest = (timed = isTimed()) => +lsGet(bestKeyOf(timed), 0) || 0;
+const bestWrap = (timed = isTimed()) => $(timed ? "sBestTWrap" : "sBestWrap");
+function clearNewRecord() {
+  for (const id in BEST_LABELS) { const w = $(id); w.classList.remove("new"); w.querySelector(".lbl").textContent = BEST_LABELS[id]; }
+}
 function resetStats() {
   state.good = state.bad = state.streak = 0;
-  const w = $("sBestWrap"); w.classList.remove("new"); w.firstChild.textContent = "🏆 Kỷ lục: ";
+  clearNewRecord();
   updateStats();
 }
-// Kỷ lục chuỗi đúng: lưu trên máy người dùng, riêng cho từng chế độ (khóa Sol / Fa / Hai khóa / Hợp âm / Nghe / Ký hiệu)
-const bestKeyOf = () => "bestStreak_" + state.mode;
-const getBest = () => +lsGet(bestKeyOf(), 0) || 0;
 function updateStats() {
-  $("sGood").textContent = state.good; $("sBad").textContent = state.bad; $("sStreak").textContent = state.streak;
-  $("sBest").textContent = getBest();
+  $("sStreak").textContent = state.streak;
+  $("sBest").textContent = getBest(false);
+  $("sBestT").textContent = getBest(true);
+  // Kỷ lục đếm giờ chỉ có ở tab Học nốt (nơi có đếm giờ)
+  $("sBestTWrap").style.display = state.mode in NOTE_CLEFS ? "" : "none";
   updateFlame();
 }
 // ===================== Hiệu ứng khi đạt mốc chuỗi đúng =====================
@@ -698,15 +707,16 @@ function track(type, data) { try { if (window.__appTrack) window.__appTrack(type
 function score(right) {
   track("answer");
   if (right) { state.good++; state.streak++; } else { state.bad++; state.streak = 0; }
-  if (!right) { const w = $("sBestWrap"); w.classList.remove("new"); w.firstChild.textContent = "🏆 Kỷ lục: "; }
+  if (!right) clearNewRecord();
   let celebrated = false;
-  if (right && state.streak > getBest()) { // phá kỷ lục
-    const prevBest = getBest();
-    lsSet(bestKeyOf(), state.streak);
-    const w = $("sBestWrap");
+  const timed = isTimed();
+  if (right && state.streak > getBest(timed)) { // phá kỷ lục (thường hoặc đếm giờ, tùy đang bật đếm giờ)
+    const prevBest = getBest(timed);
+    lsSet(bestKeyOf(timed), state.streak);
+    const w = bestWrap(timed);
     if (prevBest > 0 && !w.classList.contains("new")) {
       w.classList.add("new");
-      w.firstChild.textContent = "🏆 Kỷ lục mới! ";
+      w.querySelector(".lbl").textContent = timed ? "⏱ Kỷ lục đếm giờ mới! " : "🏆 Kỷ lục mới! ";
       if (prevBest >= 5) { celebrateRecord(state.streak); celebrated = true; } // vượt kỷ lục đáng kể
     }
   }
@@ -1481,7 +1491,7 @@ const byMode = (sym, ear, note, chord) => () => (state.mode === "sym" ? sym : st
 $("autoBtn").onclick = () => setAuto(!autoOn);
 document.querySelectorAll("#noteClef button").forEach(b => b.onclick = () => setMode(b.dataset.v));
 setupSeg("noteMax", state.noteMax, v => { state.noteMax = +v; lsSet("noteMax", state.noteMax); if (state.phase === "note") newNote(); });
-$("timer").addEventListener("change", () => { state.tLimit = T_MAX; view(state.phase); if (state.phase === "note") newNote(); });
+$("timer").addEventListener("change", () => { state.tLimit = T_MAX; resetStats(); view(state.phase); if (state.phase === "note") newNote(); });
 setAuto(autoOn);
 $("nextBtn").onclick = byMode(newSymbol, newEar, newNote, newChord);
 $("soundBtn").onclick = byMode(() => {}, playEar, playNotes, playChord);
