@@ -13,9 +13,9 @@
 | 🎧 Luyện nghe | Nghe 1 nốt (phát 3 lần, cách nhau 1 giây) trong 7 nốt Đô4 → Si4, chọn đúng tên nốt |
 | ♯ Ký hiệu | Nhận biết 41 ký hiệu âm nhạc và chức năng của chúng |
 | 🖐 Luyện ngón | 12 bài tập có ghi số ngón, chọn **tay phải** (khóa Sol) hoặc **tay trái** (khóa Fa): 5 ngón (vị trí Đô, Sol, Rê), quãng 3, Hanon số 1, gam Đô / Sol / Rê / Fa trưởng, La thứ, hợp âm rải, gam 2 quãng tám |
-| 🎵 Bài hát | Giai điệu tay phải 9 bài phổ biến (đã hết bản quyền / dân gian): Mary Had a Little Lamb, Twinkle Twinkle, Kìa con bướm vàng, Ode to Joy, Jingle Bells, London Bridge, Happy Birthday, Silent Night, Für Elise |
+| 🎵 Bài hát | 9 bài phổ biến, chọn **tay phải** (giai điệu) hoặc **tay trái** (đệm bass; Für Elise rải hợp âm như bản gốc) (đã hết bản quyền / dân gian): Mary Had a Little Lamb, Twinkle Twinkle, Kìa con bướm vàng, Ode to Joy, Jingle Bells, London Bridge, Happy Birthday, Silent Night, Für Elise |
 
-Ở **Luyện ngón** và **Bài hát**, nốt cần bấm được tô xanh, bấm đúng phím mới sang nốt tiếp (sai thì nháy đỏ và tính lỗi). Bấm bằng phím trên màn hình, đàn MIDI hoặc bàn phím máy tính (`A S D F G H J K` = Đô → Đô, `W E T Y U` = phím đen). Có **Nghe mẫu** (phát cả bài theo nhịp), **Gợi ý phím** (tô phím và số ngón trên bàn phím), **Tên nốt**. Chơi xong được chấm 1–3 sao (3 sao = không sai nốt nào), số sao cao nhất lưu trên máy.
+Ở **Luyện ngón** và **Bài hát**, khuông nhạc là một dòng dài trượt dần sang trái, nốt cần bấm luôn nằm giữa khung sáng và được tô xanh, bấm đúng phím mới sang nốt tiếp (sai thì nháy đỏ và tính lỗi). Bấm bằng phím trên màn hình, đàn MIDI hoặc bàn phím máy tính (`A S D F G H J K` = Đô → Đô, `W E T Y U` = phím đen). Có **Nghe mẫu** (phát cả bài theo nhịp; bài hát phát cả hai tay), **Gợi ý phím** (tô phím và số ngón trên bàn phím), **Tên nốt**. Chơi xong được chấm 1–3 sao (3 sao = không sai nốt nào), số sao cao nhất lưu trên máy.
 
 Tùy chọn: số dòng kẻ phụ (0–5, áp dụng cho cả trên và dưới khuông; từ 4 dòng có thể viết gọn bằng ký hiệu quãng tám 8va/8vb), dấu hóa (bật lên là có tất cả: ♯ ♭ ngẫu nhiên, hóa biểu ngẫu nhiên đầu khuông, dấu bình ♮ và dấu hóa “đánh lừa”), phát âm thanh piano thật, tự chuyển câu (nút ⏸ Dừng tự chuyển / ▶ Tự chuyển).
 
