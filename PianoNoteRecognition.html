@@ -984,8 +984,12 @@ function renderNote() {
     let cls = "";
     if (it.ans) cls = noteRight(it) ? "good" : "bad";
     else if (state.revealed) cls = n === 1 ? "good" : "dim";
-    else if (cur) cls = "hl";
+    else if (cur) cls = state.flash ? "bad" : "hl";
     const disp = displayOf(it.d, state.clef), y = yOf(disp.d, state.clef);
+    if (cur) { // khung sáng quanh nốt đang đọc (giống Luyện ngón)
+      const y0 = Math.min(TOP - 8, y - 3.5 * S - 4), y1 = Math.max(BOTTOM + 8, y + 3.5 * S + 4);
+      el("rect", { x: x - 20, y: y0, width: 40, height: y1 - y0, rx: 8, class: "playhead" }, svg);
+    }
     const sign = it.sign; // null: không ghi dấu; -1/1: ♭/♯; 0: ♮
     drawNote(svg, x, disp.d, state.clef, { cls, acc: sign === 1 || sign === -1 ? sign : 0, natural: sign === 0 });
     if (disp.ott) { // ký hiệu quãng tám: 8va phía trên nốt, 8vb phía dưới nốt
@@ -1009,8 +1013,7 @@ function renderNote() {
   const bottom = state.noteMax > 1 ? labelY + 16 : Math.max(215, yLo + 3.5 * S + 6);
   svg.setAttribute("viewBox", `0 ${top} 360 ${bottom - top}`);
   marks.forEach(({ x, cur, it }) => {
-    if (cur) el("path", { d: `M${x - 6} ${top + 4} L${x + 6} ${top + 4} L${x} ${top + 12} Z`, class: "f hl" }, svg);
-    if (n > 1 && (it.ans || state.revealed)) {
+    if (n > 1 && (it.done || state.revealed)) { // chỉ hiện tên khi đã bấm đúng nốt đó
       const ok = noteRight(it), name = nameOf(it.d, it.acc).vi;
       el("text", { x, y: labelY, class: "lbl " + (it.ans ? (ok ? "good" : "bad") : "") }, svg)
         .textContent = it.ans ? label(it.ans) : "—";
@@ -1052,7 +1055,7 @@ function newNote() {
     else it.sign = it.acc !== 0 ? it.acc : (base !== 0 ? 0 : null);
     inEffect[it.d] = it.acc;
   });
-  state.idx = 0; state.revealed = false; clearAuto();
+  state.idx = 0; state.revealed = false; state.flash = false; clearAuto();
   $("result").innerHTML = (count === 1
     ? '<span class="hint">Nốt này là nốt gì?</span>'
     : `<span class="hint">Đọc lần lượt ${count} nốt từ trái sang phải</span>`) +
@@ -1069,13 +1072,23 @@ function answerNote(g) {
   if (state.revealed || state.phase !== "note") return;
   if (state.notes.length === 1) return revealNote(g);
   const it = state.notes[state.idx];
-  it.ans = g;
   // luôn phát âm của nốt đúng (trừ khi đã bấm đúng phím trên đàn MIDI: đàn tự phát rồi)
   if ($("autoSound").checked && !(g.midi != null && g.ok)) play(midiOf(it.d, it.acc));
+  const right = noteRight({ ...it, ans: g });
   const b = $("answers").children[g.li];
-  b.className = noteRight(it) ? "right" : "wrong";
+  b.className = right ? "right" : "wrong";
   setTimeout(() => { if (!state.revealed) b.className = ""; }, 250);
   setAccSel(0);
+  clearTimeout(state.flashT);
+  if (!right) { // sai: ghi nhận lần chọn sai đầu tiên (để chấm điểm), nốt nháy đỏ rồi cho chọn lại
+    if (!it.ans) it.ans = g;
+    state.flash = true; renderNote();
+    state.flashT = setTimeout(() => { state.flash = false; if (!state.revealed && state.phase === "note") renderNote(); }, 400);
+    return;
+  }
+  if (!it.ans) it.ans = g; // đúng ngay lần đầu
+  it.done = true;
+  state.flash = false;
   state.idx++;
   if (state.idx >= state.notes.length) revealNote();
   else renderNote();
@@ -1771,7 +1784,9 @@ function finishPractice() {
   const acc = Math.round(100 * N / (N + p.errors));
   $("result").innerHTML = `<div class="big ok">${stars === 3 ? "🏆 Hoàn hảo!" : "🎉 Hoàn thành!"}</div>` +
     `<div class="small"><span style="color:var(--key-hl);font-size:1.2rem">${starText(stars)}</span> · Chính xác ${acc}% · Sai ${p.errors} · ${fmtTime(ms)}` +
-    (stars > prev && prev ? " · Kỷ lục mới!" : "") + `</div><span class="hint">↺ Chơi lại hoặc Bài tiếp →</span>`;
+    (stars > prev && prev ? " · Kỷ lục mới!" : "") + `</div><span class="hint">` +
+    (p.kind === "finger" ? "Tự bắt đầu lại sau 1,5 giây…" : "↺ Chơi lại hoặc Bài tiếp →") + `</span>`;
+  if (p.kind === "finger") setTimeout(() => { if (state.prac === p && state.phase === "finger" && !p.demoT) startPractice("finger"); }, 1500);
   const c = stars === 3 ? ["#fde047", "#f59e0b"] : ["#4ade80", "#22d3ee"];
   const b = showBurst(stars === 3 ? "PERFECT!" : "DONE!", stars === 3 ? "🏆" : "🎉", starText(stars), c[0], c[1]);
   launchConfetti(stars === 3 ? 40 : 24, [c[0], c[1], "#ffffff", "#fde047"], b);
