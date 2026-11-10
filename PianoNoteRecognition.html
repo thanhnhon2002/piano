@@ -1531,6 +1531,30 @@ function hanon(startD, groups, fings, last) {
   ns.push(dName(startD + groups + 2)); // kết thúc ở bậc 4 của nhóm cuối
   return mk(ns, fings.repeat(groups) + last, "e", 8, "w");
 }
+// Bè tay trái: đệm bass trong vị trí Đô (Đô3 = ngón 5 … Sol3 = ngón 1).
+// Mỗi ô nhịp ghi 1 hợp âm ("C": nốt gốc + quãng 5) hoặc 2 hợp âm ("F C": mỗi hợp âm 1 nốt gốc).
+// Bộ "g": tay trái ở vị trí Sol2 (Sol2 = ngón 5 … Rê3 = ngón 1) cho bài có giai điệu xuống thấp hoặc giọng Sol.
+const LH_SETS = {
+  c: { C: ["C3", 5, "G3", 1], F: ["F3", 2, "C3", 5], G: ["G3", 1, "D3", 4] },
+  g: { G: ["G2", 5, "D3", 1], C: ["C3", 2, "G2", 5], D: ["D3", 1, "A2", 4], F: ["F2", 5, "C3", 1] },
+};
+function bassLine(chart, beats = 4, set = "c") {
+  const LH_V = LH_SETS[set];
+  return chart.map((c, i) => {
+    const ch = c.split(" ").map(x => LH_V[x]), [a, b] = ch, two = ch.length === 2;
+    const tail = beats === 4 ? "h" : "q";
+    if (two) return `${a[0]}/h:${a[1]} ${b[0]}/${tail}:${b[1]}`;
+    if (i === chart.length - 1) return `${a[0]}/${beats === 4 ? "w" : "h."}:${a[1]}`;
+    return `${a[0]}/h:${a[1]} ${a[2]}/${tail}:${a[3]}`;
+  }).join(" | ");
+}
+// Kiểu Hanon tổng quát: mỗi nhóm theo mẫu offs (bậc so với nốt đầu nhóm), dời lên 1 bậc mỗi nhóm
+function hanonP(startD, groups, offs, fings, lastOff, lastF) {
+  const ns = [];
+  for (let g = 0; g < groups; g++) offs.forEach(o => ns.push(dName(startD + g + o)));
+  ns.push(dName(startD + groups - 1 + lastOff));
+  return mk(ns, fings.repeat(groups) + lastF, "e", 8, "w");
+}
 const FIVE = "C4 D4 E4 F4 G4 F4 E4 D4 C4 D4 E4 F4 G4 F4 E4 D4 C4", FIVE_F = "12345432123454321";
 const five = (root, kLh) => { // 5 ngón đi lên – xuống 2 lần, bắt đầu từ nốt root (vd "G4")
   const dOf = n => +n.slice(-1) * 7 + LETTERS.indexOf(n[0]), sh = n => dName(dOf(n) - 28 + dOf(root));
@@ -1602,8 +1626,45 @@ const EXERCISES = (() => {
   [ln, lf] = upDown("C3 C#3 D3 D#3 E3 F3 F#3 G3 G#3 A3 A#3 B3 C4", "1313213131321");
   add("chrom", "Gam nửa cung (crômatic)", "Đi qua tất cả phím trắng và đen: ngón 3 trên phím đen, ngón 1 trên phím trắng.", 0,
     mk(rn, rf, "e", 8), mk(ln, lf, "e", 8));
-  const ORDER = ["five-c", "five-g", "five-d", "five-f", "five-am", "thirds", "thumb", "scale-c", "arp-c", "scale-g", "arp-g",
-    "scale-f", "arp-f", "scale-am", "scale-d", "scale-em", "scale-dm", "scale-ahm", "hanon1", "scale-a", "scale-e", "chrom", "scale-c2"];
+  // --- Đợt 3: bài tách ngón, đổi ngón, phối hợp hai tay
+  add("five-mirror", "5 ngón đối xứng (hai tay ngược chiều)",
+    "Hai ngón cái cùng bắt đầu ở Đô, hai tay đi ra xa rồi về – hai tay luôn dùng cùng số ngón. Bài phối hợp hai tay cơ bản nhất.", 0,
+    mk(FIVE, FIVE_F), mk("C3 B2 A2 G2 F2 G2 A2 B2 C3 B2 A2 G2 F2 G2 A2 B2 C3", FIVE_F));
+  const ADJ = "C4 D4 C4 D4 C4 D4 C4 D4 D4 E4 D4 E4 D4 E4 D4 E4 E4 F4 E4 F4 E4 F4 E4 F4 F4 G4 F4 G4 F4 G4 F4 G4 C4";
+  const ADJ_F = "12121212" + "23232323" + "34343434" + "45454545" + "1";
+  add("adjacent", "Hai ngón kề nhau (1-2, 2-3, 3-4, 4-5)",
+    "Luyện đều từng cặp ngón như láy rền. Cặp 4-5 yếu nhất – đánh chậm, ngón cong, không gồng cổ tay.", 0,
+    mk(ADJ, ADJ_F, "e", 8), mk(octShift(ADJ, -1), mirror(ADJ_F), "e", 8));
+  const RK = "C4 C4 C4 C4 D4 D4 D4 D4 E4 E4 E4 E4 F4 F4 F4 F4 G4 G4 G4 G4 C4", RK_F = "4321".repeat(5) + "1";
+  add("samekey", "Đổi ngón trên cùng phím (4-3-2-1)",
+    "Bấm 4 lần cùng một phím, mỗi lần một ngón 4-3-2-1 – kỹ thuật cần cho nốt nhắc lại nhanh.", 0,
+    mk(RK, RK_F), mk(octShift(RK, -1), RK_F));
+  add("callresp", "Hai tay hỏi – đáp",
+    "Tay trái đi trước, tay phải trả lời, rồi đổi lại. Luyện chuyển tay nhịp nhàng, không ngắt quãng.", 0,
+    "R/w | G4/q:5 F4/q:4 E4/q:3 D4/q:2 | R/w | C4/q:1 D4/q:2 E4/q:3 F4/q:4 | C4/w:1",
+    "C3/q:5 D3/q:4 E3/q:3 F3/q:2 | R/w | G3/q:1 F3/q:2 E3/q:3 D3/q:4 | R/w | C3/w:5");
+  add("lhsteady", "Tay trái giữ nhịp, tay phải chạy nốt",
+    "Tay trái đánh nốt trắng Đô – Sol đều đặn, tay phải đánh 5 ngón nốt đen. Luyện hai tay độc lập.", 0,
+    mk(FIVE, FIVE_F), bassLine(["C", "G", "C", "G", "C"]));
+  scale("scale-contrary", "Gam Đô trưởng ngược chiều (hai tay)",
+    "Tay phải đi lên, tay trái đi xuống – hai tay luồn ngón cái cùng lúc. Cách học gam hai tay dễ nhất.", 0,
+    "C4 D4 E4 F4 G4 A4 B4 C5", "12312345", "C3 B2 A2 G2 F2 E2 D2 C2", "12312345");
+  const BC = [], BC_L = [];
+  for (let k = 0; k < 8; k++) [0, 2, 4, 2].forEach(o => { BC.push(dName(28 + k + o)); BC_L.push(dName(21 + k + o)); });
+  BC.push("C5"); BC_L.push("C4");
+  add("broken", "Hợp âm rải theo bậc (Đô – Mi – Sol – Mi …)",
+    "Rải hợp âm 3 nốt trên từng bậc của gam Đô, dời tay lên mỗi ô nhịp. Luyện cảm giác khoảng cách quãng 3, quãng 5.", 0,
+    mk(BC, "1353".repeat(8) + "1"), mk(BC_L, "5313".repeat(8) + "5"));
+  add("hanon2", "Hanon số 2 (đoạn đầu)", "Mở rộng bàn tay quãng 6 (ngón 1 – 5), các ngón 3-4 luyện độc lập.", 0,
+    hanonP(28, 5, [0, 2, 5, 4, 3, 4, 3, 2], "13543432", 3, "3"),
+    hanonP(21, 5, [0, 2, 5, 4, 3, 4, 3, 2], mirror("13543432"), 3, "3"));
+  [rn, rf] = upDown("C4 E4 G4 C5 E5 G5 C6", "1231235");
+  [ln, lf] = upDown("C2 E2 G2 C3 E3 G3 C4", "5421421");
+  add("arp-c2", "Hợp âm rải Đô trưởng 2 quãng tám", "Luồn ngón cái qua quãng tám, giữ cổ tay mềm và ngang.", 0,
+    mk(rn, rf), mk(ln, lf));
+  const ORDER = ["five-c", "five-g", "five-d", "five-f", "five-am", "five-mirror", "adjacent", "thirds", "thumb", "samekey",
+    "callresp", "lhsteady", "scale-c", "scale-contrary", "arp-c", "broken", "scale-g", "arp-g", "scale-f", "arp-f", "scale-am",
+    "scale-d", "scale-em", "scale-dm", "scale-ahm", "hanon1", "hanon2", "scale-a", "scale-e", "chrom", "arp-c2", "scale-c2"];
   L.sort((x, y) => ORDER.indexOf(x.id) - ORDER.indexOf(y.id));
   return L;
 })();
@@ -1644,23 +1705,6 @@ const SONGS = [
   { id: "elise", name: "Für Elise – Beethoven (đoạn đầu)", desc: "Có phím đen Rê♯ và Sol♯, phải dời tay nhiều. Bài nâng cao.", key: 0, bpm: 80,
     rh: "E5/e:5 D#5/e:4 | E5/e:5 D#5/e:4 E5/e:5 B4/e:2 D5/e:4 C5/e:3 | A4/q.:1 C4/e:1 E4/e:2 A4/e:4 | B4/q.:5 E4/e:1 G#4/e:3 B4/e:4 | C5/q.:5 E4/e:1 E5/e:5 D#5/e:4 | E5/e:5 D#5/e:4 E5/e:5 B4/e:2 D5/e:4 C5/e:3 | A4/q.:1 C4/e:1 E4/e:2 A4/e:4 | B4/q.:5 E4/e:1 C5/e:5 B4/e:4 | A4/h.:3" },
 ];
-// Bè tay trái: đệm bass trong vị trí Đô (Đô3 = ngón 5 … Sol3 = ngón 1).
-// Mỗi ô nhịp ghi 1 hợp âm ("C": nốt gốc + quãng 5) hoặc 2 hợp âm ("F C": mỗi hợp âm 1 nốt gốc).
-// Bộ "g": tay trái ở vị trí Sol2 (Sol2 = ngón 5 … Rê3 = ngón 1) cho bài có giai điệu xuống thấp hoặc giọng Sol.
-const LH_SETS = {
-  c: { C: ["C3", 5, "G3", 1], F: ["F3", 2, "C3", 5], G: ["G3", 1, "D3", 4] },
-  g: { G: ["G2", 5, "D3", 1], C: ["C3", 2, "G2", 5], D: ["D3", 1, "A2", 4], F: ["F2", 5, "C3", 1] },
-};
-function bassLine(chart, beats = 4, set = "c") {
-  const LH_V = LH_SETS[set];
-  return chart.map((c, i) => {
-    const ch = c.split(" ").map(x => LH_V[x]), [a, b] = ch, two = ch.length === 2;
-    const tail = beats === 4 ? "h" : "q";
-    if (two) return `${a[0]}/h:${a[1]} ${b[0]}/${tail}:${b[1]}`;
-    if (i === chart.length - 1) return `${a[0]}/${beats === 4 ? "w" : "h."}:${a[1]}`;
-    return `${a[0]}/h:${a[1]} ${a[2]}/${tail}:${a[3]}`;
-  }).join(" | ");
-}
 const SONG_LH = {
   mary: bassLine(["C", "C", "G", "C", "C", "C", "G", "C"]),
   twinkle: bassLine(["C", "F C", "F C", "G C", "C G", "C G", "C G", "C G", "C", "F C", "F C", "G C"]),
