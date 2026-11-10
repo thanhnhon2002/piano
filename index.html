@@ -43,7 +43,8 @@
   .music { font-family: "Noto Music", "Segoe UI Symbol", serif; }
 
   /* Chọn chế độ */
-  .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+  .modes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 10px; }
+  @media (max-width: 560px) { .modes { grid-template-columns: repeat(3, 1fr); } }
   .modes button {
     border: 1px solid var(--border); background: var(--card); color: var(--ink);
     border-radius: 12px; padding: 8px 4px; cursor: pointer; font: inherit; font-size: .85rem;
@@ -185,6 +186,15 @@
   .stats .best.new { color: var(--good); animation: pop .6s ease; }
   .stats .best.new b, .stats .best.timed.new, .stats .best.timed.new b { color: var(--good); }
   @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+  /* Luyện ngón & Bài hát */
+  #staff .fing { font-size: 13px; font-weight: 800; text-anchor: middle; fill: var(--muted); }
+  #staff .fing.hl { fill: var(--accent); font-size: 15px; } #staff .fing.good { fill: var(--good); } #staff .fing.bad { fill: var(--bad); }
+  #staff .pg { font-size: 11px; text-anchor: end; fill: var(--muted); }
+  #kbd.play rect { cursor: pointer; } #kbd text { pointer-events: none; }
+  #restartBtn { flex: 0 0 auto; background: var(--card); color: var(--ink); border: 1px solid var(--border); }
+  #pieceSel { max-width: 260px; }
+  @media (max-width: 480px) { .actions .t { display: none; } }
+  .result .big .fn { color: var(--accent); }
   .keys-hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
   .author { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
   .author b { color: var(--ink); }
@@ -234,6 +244,12 @@
     <label class="chk"><input type="checkbox" id="inv"> Thể đảo</label>
   </div>
 
+  <div class="settings" id="practiceOpts">
+    <label class="kbsel">Bài: <select id="pieceSel"></select></label>
+    <div class="seg" id="handSeg"><button data-v="rh">Tay phải</button><button data-v="lh">Tay trái</button></div>
+    <label class="chk" title="Tô sáng phím cần bấm và số ngón trên bàn phím"><input type="checkbox" id="pracHint" checked> Gợi ý phím</label>
+    <label class="chk"><input type="checkbox" id="pracNames"> Tên nốt</label>
+  </div>
   <div class="card">
     <div class="timer" id="timerBox">
       <span id="tLeft">20.0s</span>
@@ -248,6 +264,7 @@
 
     <div class="actions" id="actions">
       <button id="autoBtn" title="Bật/tắt tự chuyển sang câu tiếp (phím Space)"></button>
+      <button id="restartBtn" title="Chơi lại từ đầu (phím R)">↺<span class="t"> Chơi lại</span></button>
       <button id="soundBtn" title="Nghe lại">🔊</button>
       <button id="nextBtn">Tiếp →</button>
     </div>
@@ -300,6 +317,8 @@ const MODES = [
     desc: "Nghe nốt Đô chuẩn, rồi nghe nốt bí ẩn và đoán xem đó là nốt gì." },
   { id: "sym", ic: "♯", music: true, label: "Ký hiệu",
     desc: "Nhận biết ký hiệu được tô màu xanh và chức năng của nó." },
+  { id: "finger", ic: "🖐", label: "Luyện ngón", desc: "Bài tập 5 ngón, gam, hợp âm rải với số ngón gợi ý." },
+  { id: "song", ic: "🎵", label: "Bài hát", desc: "Đánh giai điệu các bài nhạc phổ biến." },
 ];
 
 const $ = id => document.getElementById(id);
@@ -444,15 +463,18 @@ const KB_SIZES = {
 let kbSize = String(lsGet("kbSize", "auto"));
 if (!(kbSize in KB_SIZES)) kbSize = "auto";
 const isWhite = m => [0, 2, 4, 5, 7, 9, 11].includes(((m % 12) + 12) % 12);
-function drawKeyboard(hlMidis) {
+// o (tùy chọn): { labels: {midi: chữ}, bad: [midi], range: [lo, hi] } – dùng cho Luyện ngón / Bài hát
+function drawKeyboard(hlMidis, o = null) {
   const svg = $("kbd"); svg.innerHTML = "";
-  state.kbdHl = hlMidis;
+  state.kbdHl = hlMidis; state.kbdOpts = o;
   const hl = new Set(hlMidis == null ? [] : [].concat(hlMidis));
+  const bad = new Set((o && o.bad) || []), labels = (o && o.labels) || {};
   const held = typeof midi !== "undefined" ? midi.held : new Set(); // phím đang bấm trên đàn MIDI
-  const fillW = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#fff";
-  const fillB = m => hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#222";
+  const fillW = m => bad.has(m) ? "var(--bad)" : hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#fff";
+  const fillB = m => bad.has(m) ? "var(--bad)" : hl.has(m) ? "var(--key-hl)" : held.has(m) ? "var(--accent)" : "#222";
   let { lo, hi } = KB_SIZES[kbSize];
-  if (kbSize === "auto") { // mở rộng cho đủ nốt thấp nhất (khóa Fa) và cao nhất (khóa Sol), kể cả ♭/♯
+  if (kbSize === "auto" && o && o.range) [lo, hi] = o.range; // vừa đủ cho bài đang luyện → phím to, dễ bấm trên điện thoại
+  else if (kbSize === "auto") { // mở rộng cho đủ nốt thấp nhất (khóa Fa) và cao nhất (khóa Sol), kể cả ♭/♯
     const k = ledgerCount();
     lo = Math.min(lo, midiOf(CLEFS.bass.bottom - 1 - 2 * k) - 1);
     hi = Math.max(hi, midiOf(CLEFS.treble.bottom + 9 + 2 * k) + 1);
@@ -465,7 +487,7 @@ function drawKeyboard(hlMidis) {
   const xOf = {}; // vị trí mép trái của từng phím trắng
   whites.forEach((m, i) => {
     xOf[m] = i * w;
-    el("rect", { x: i * w, y: 0, width: w, height: h, rx: Math.min(2, w / 4),
+    el("rect", { x: i * w, y: 0, width: w, height: h, rx: Math.min(2, w / 4), "data-m": m,
       style: `fill:${fillW(m)};stroke:#555;stroke-width:${w < 9 ? 0.6 : 1}` }, svg);
     if (m % 12 === 0)
       el("text", { x: i * w + w / 2, y: h - 5, "text-anchor": "middle", "font-size": fs, fill: "#888" }, svg)
@@ -474,10 +496,18 @@ function drawKeyboard(hlMidis) {
   for (let m = lo + 1; m < hi; m++) {
     if (isWhite(m)) continue;
     const x = xOf[m - 1] + w; // phím đen nằm giữa 2 phím trắng
-    el("rect", { x: x - w * 0.3, y: 0, width: w * 0.6, height: h * 0.6, rx: Math.min(1.5, w / 6),
+    el("rect", { x: x - w * 0.3, y: 0, width: w * 0.6, height: h * 0.6, rx: Math.min(1.5, w / 6), "data-m": m,
       style: `fill:${fillB(m)};stroke:#222;stroke-width:${w < 9 ? 0.5 : 1}` }, svg);
   }
+  for (const m in labels) { // số ngón ghi trên phím
+    const k = +m;
+    if (k < lo || k > hi) continue;
+    const white = isWhite(k), cx = white ? xOf[k] + w / 2 : xOf[k - 1] + w;
+    el("text", { x: cx, y: white ? h - 16 : h * 0.6 - 6, "text-anchor": "middle", "font-size": Math.min(14, w * 0.9),
+      "font-weight": 800, fill: "#1f1d1a" }, svg).textContent = labels[m];
+  }
 }
+const redrawKeyboard = () => drawKeyboard(state.kbdHl, state.kbdOpts);
 
 // ===================== Âm thanh: mẫu piano thật (Salamander Grand Piano) =====================
 // midi -> MP3 base64; được build.py nhúng vào. Nếu trống thì dùng âm tổng hợp.
@@ -566,16 +596,18 @@ function synthNote(c, midi, t) {
 const state = { mode: "both", clef: T, d: 30, acc: 0, revealed: false, good: 0, bad: 0, streak: 0,
   noteClef: "treble", chord: null, sym: null, ear: null, phase: "", accSel: 0 };
 
-const PARTS = ["noteClefOpts", "chordOpts", "timerBox", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"];
+const PARTS = ["practiceOpts", "noteClefOpts", "chordOpts", "timerBox", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"];
 const VIEWS = {
   note: ["noteClefOpts", "timerBox", "staff", "result", "accSel", "answers", "actions", "kbd", "stats"],
   ear: ["staff", "result", "answers", "actions", "kbd", "stats"],
   sym: ["staff", "result", "answers", "actions", "stats"],
   chord: ["chordOpts", "staff", "result", "answers", "actions", "kbd", "stats"],
+  finger: ["practiceOpts", "staff", "result", "actions", "kbd"],
+  song: ["practiceOpts", "staff", "result", "actions", "kbd"],
 };
 const OPTS = {
   note: ["optLedger", "optOtt", "optAcc", "optTimer", "optSound"], chord: ["optAcc", "optSound"],
-  ear: [], sym: [],
+  ear: [], sym: [], finger: [], song: [],
 };
 const ALL_OPTS = ["optLedger", "optOtt", "optAcc", "optTimer", "optSound"];
 
@@ -610,13 +642,22 @@ const HINTS = {
   ear: "Phím tắt: R = nghe lại · Space = bật/tắt tự chuyển · Enter / → = câu tiếp · 1–7 hoặc C D E F G A B = chọn nốt",
   sym: "Phím tắt: Space = bật/tắt tự chuyển · Enter / → = ký hiệu tiếp · 1–4 = chọn đáp án",
   chord: "Phím tắt: 1–4 = chọn đáp án · Space = bật/tắt tự chuyển · Enter / → = hợp âm tiếp · R = nghe hợp âm",
+  finger: "Bấm phím trên màn hình, trên đàn hoặc bàn phím máy tính: A S D F G H J K = Đô → Đô, W E T Y U = phím đen · Space = nghe mẫu · R = chơi lại · Enter = bài tiếp",
 };
+HINTS.song = HINTS.finger;
 function view(name) {
   state.phase = name;
   PARTS.forEach(id => { $(id).style.display = VIEWS[name].includes(id) ? "" : "none"; });
   if (VIEWS[name].includes("accSel") && !accOn()) $("accSel").style.display = "none";
   if (name === "note" && !timerOn()) $("timerBox").style.display = "none";
   $("soundBtn").style.display = name === "sym" ? "none" : "";
+  const prac = name in PRAC;
+  $("autoBtn").style.display = prac ? "none" : "";
+  $("restartBtn").style.display = prac ? "" : "none";
+  $("soundBtn").innerHTML = prac ? DEMO_LABEL : "🔊";
+  $("nextBtn").textContent = prac ? "Bài tiếp →" : "Tiếp →";
+  $("kbd").classList.toggle("play", prac);
+  $("handSeg").style.display = name === "finger" ? "" : "none";
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
   if (ledgerCount() < OTT_FROM) $("optOtt").style.display = "none"; // 8va/8vb chỉ cần khi có từ 4 dòng kẻ phụ
   $("noteOpts").style.display = OPTS[name].length ? "" : "none";
@@ -827,7 +868,7 @@ function markAnswers(rightLi, guess, guessOk) {
 }
 
 function setMode(m) {
-  clearAuto(); stopQTimer();
+  clearAuto(); stopQTimer(); stopDemo();
   $("staff").setAttribute("viewBox", "0 0 360 215");
   if (m === "note") m = state.noteClef;
   const isNote = m in NOTE_CLEFS;
@@ -838,6 +879,7 @@ function setMode(m) {
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.m === tab));
   document.querySelectorAll("#noteClef button").forEach(b => b.classList.toggle("on", b.dataset.v === state.noteClef));
   resetStats();
+  if (m in PRAC) { view(m); return startPractice(m); }
   if (m === "chord") { view("chord"); return newChord(); }
   if (m === "sym") { view("sym"); return newSymbol(); }
   if (m === "ear") { view("ear"); buildNoteAnswers(g => revealEar(g)); return newEar(); }
@@ -1430,6 +1472,293 @@ function revealSym(guess) {
   scheduleAuto(newSymbol, 4000);
 }
 
+// ===================== Luyện ngón & Bài hát =====================
+// Chơi kiểu "chờ": nốt hiện tại tô xanh, bấm đúng phím mới sang nốt kế tiếp.
+// Cách ghi nốt: "E4/q:3" = Mi4, nốt đen, ngón 3. Trường độ: w tròn, h trắng, q đen, e móc đơn; thêm "." = có chấm.
+// "F#4" thăng, "Bb4" giáng; "|" = vạch nhịp. Ngón: 1 = ngón cái … 5 = ngón út.
+const DUR = { w: [4, "whole"], h: [2, "half"], q: [1, "quarter"], e: [0.5, "eighth"] };
+function parseMusic(src) {
+  const out = [];
+  src.trim().split("|").forEach((barSrc, bar) => barSrc.trim().split(/\s+/).filter(Boolean).forEach(tok => {
+    const m = tok.match(/^([A-G])([#b]?)(\d)\/([whqe])(\.?)(?::(\d))?$/);
+    if (!m) throw new Error("Nốt ghi sai: " + tok);
+    const d = +m[3] * 7 + LETTERS.indexOf(m[1]), acc = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
+    const [beats, type] = DUR[m[4]];
+    out.push({ d, acc, midi: midiOf(d, acc), type, dot: !!m[5], beats: beats * (m[5] ? 1.5 : 1), fing: +m[6] || 0, bar });
+  }));
+  return out;
+}
+// Tạo chuỗi nốt từ danh sách tên nốt + chuỗi số ngón; mỗi perBar nốt một ô nhịp, nốt cuối dùng lastDur
+function mk(notes, fings, dur = "q", perBar = 4, lastDur = "w") {
+  const ns = typeof notes === "string" ? notes.split(" ") : notes, fs = String(fings).split("");
+  return ns.map((n, i) => {
+    const last = i === ns.length - 1;
+    return `${n}/${last ? lastDur : dur}:${fs[i]}` + (!last && (i + 1) % perBar === 0 ? " |" : "");
+  }).join(" ");
+}
+const upDown = (ns, fs) => { const n = ns.split(" "), f = fs.split(""); return [n.concat(n.slice(0, -1).reverse()), f.concat(f.slice(0, -1).reverse()).join("")]; };
+const octShift = (ns, k) => (typeof ns === "string" ? ns.split(" ") : ns).map(n => n.replace(/\d$/, x => +x + k));
+const mirror = fs => fs.split("").map(f => 6 - f).join("");
+const dName = d => LETTERS[d % 7] + Math.floor(d / 7);
+// Hanon số 1: mỗi nhóm 8 nốt bắt đầu từ một bậc, đi lên dần
+function hanon(startD, groups, fings, last) {
+  const ns = [];
+  for (let g = 0; g < groups; g++) [0, 2, 3, 4, 5, 4, 3, 2].forEach(o => ns.push(dName(startD + g + o)));
+  ns.push(dName(startD + groups + 2)); // kết thúc ở bậc 4 của nhóm cuối
+  return mk(ns, fings.repeat(groups) + last, "e", 8, "w");
+}
+const FIVE = "C4 D4 E4 F4 G4 F4 E4 D4 C4 D4 E4 F4 G4 F4 E4 D4 C4", FIVE_F = "12345432123454321";
+const five = (root, kLh) => { // 5 ngón đi lên – xuống 2 lần, bắt đầu từ nốt root (vd "G4")
+  const dOf = n => +n.slice(-1) * 7 + LETTERS.indexOf(n[0]), sh = n => dName(dOf(n) - 28 + dOf(root));
+  const ns = FIVE.split(" ").map(sh);
+  return { rh: ns, lh: octShift(ns, kLh) };
+};
+const EXERCISES = (() => {
+  const L = [];
+  const add = (id, name, desc, key, rh, lh) => L.push({ id, name, desc, key, bpm: 100, rh, lh });
+  let f = five("C4", -1);
+  add("five-c", "5 ngón – vị trí Đô", "Đặt 5 ngón lên Đô Rê Mi Fa Sol (ngón 1 = ngón cái), đi lên rồi đi xuống.", 0,
+    mk(f.rh, FIVE_F), mk(f.lh, mirror(FIVE_F)));
+  f = five("G4", -2);
+  add("five-g", "5 ngón – vị trí Sol", "Dời tay lên Sol La Si Đô Rê, giữ các ngón cong và đều tay.", 0,
+    mk(f.rh, FIVE_F), mk(f.lh, mirror(FIVE_F)));
+  f = { rh: "D4 E4 F#4 G4 A4 G4 F#4 E4 D4 E4 F#4 G4 A4 G4 F#4 E4 D4".split(" ") };
+  add("five-d", "5 ngón – vị trí Rê (có Fa♯)", "Ngón 3 đặt trên phím đen Fa♯.", 0,
+    mk(f.rh, FIVE_F), mk(octShift(f.rh, -1), mirror(FIVE_F)));
+  const TH = "C4 E4 D4 F4 E4 G4 F4 D4 E4 C4 D4 E4 C4", TH_F = "1324354231231";
+  add("thirds", "Quãng 3 nối tiếp", "Nhảy cách 1 phím: ngón 1-3, 2-4, 3-5. Giúp các ngón độc lập hơn.", 0,
+    mk(TH, TH_F), mk(octShift(TH, -1), mirror(TH_F)));
+  add("hanon1", "Hanon số 1 (đoạn đầu)", "Bài luyện ngón kinh điển của Hanon: mỗi nhóm 8 nốt, dời lên một bậc. Đánh chậm và đều.", 0,
+    hanon(28, 5, "12345432", "3"), hanon(21, 5, "54321234", "3"));
+  const scale = (id, name, desc, key, rhNotes, rhF, lhNotes, lhF) => {
+    const [rn, rf] = upDown(rhNotes, rhF), [ln, lf] = upDown(lhNotes, lhF);
+    add(id, name, desc, key, mk(rn, rf, "q", 4, "h"), mk(ln, lf, "q", 4, "h"));
+  };
+  scale("scale-c", "Gam Đô trưởng", "Tay phải: đi lên luồn ngón cái dưới ngón 3, đi xuống vắt ngón 3 qua ngón cái.", 0,
+    "C4 D4 E4 F4 G4 A4 B4 C5", "12312345", "C3 D3 E3 F3 G3 A3 B3 C4", "54321321");
+  scale("scale-g", "Gam Sol trưởng (Fa♯)", "Hóa biểu 1 dấu thăng: mọi nốt Fa đều đánh Fa♯ (phím đen).", 1,
+    "G4 A4 B4 C5 D5 E5 F#5 G5", "12312345", "G2 A2 B2 C3 D3 E3 F#3 G3", "54321321");
+  scale("scale-d", "Gam Rê trưởng (Fa♯, Đô♯)", "Hóa biểu 2 dấu thăng: Fa♯ và Đô♯.", 2,
+    "D4 E4 F#4 G4 A4 B4 C#5 D5", "12312345", "D3 E3 F#3 G3 A3 B3 C#4 D4", "54321321");
+  scale("scale-f", "Gam Fa trưởng (Si♭)", "Tay phải luồn ngón cái sau ngón 4 (Si♭) – khác với các gam khác.", -1,
+    "F4 G4 A4 Bb4 C5 D5 E5 F5", "12341234", "F3 G3 A3 Bb3 C4 D4 E4 F4", "54321321");
+  scale("scale-am", "Gam La thứ tự nhiên", "Toàn phím trắng, bắt đầu và kết thúc ở La.", 0,
+    "A4 B4 C5 D5 E5 F5 G5 A5", "12312345", "A2 B2 C3 D3 E3 F3 G3 A3", "54321321");
+  add("arp-c", "Hợp âm rải Đô trưởng", "Rải các nốt Đô – Mi – Sol – Đô, cổ tay mềm và dời tay nhẹ nhàng.", 0,
+    mk("C4 E4 G4 C5 G4 E4 C4 E4 G4 C5 G4 E4 C4", "1235321235321"),
+    mk("C3 E3 G3 C4 G3 E3 C3 E3 G3 C4 G3 E3 C3", "5321235321235"));
+  let [rn, rf] = upDown("C4 D4 E4 F4 G4 A4 B4 C5 D5 E5 F5 G5 A5 B5 C6", "123123412312345");
+  let [ln, lf] = upDown("C2 D2 E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4", "543213214321321");
+  add("scale-c2", "Gam Đô trưởng 2 quãng tám", "Nốt móc đơn, luồn ngón liên tục. Bài nâng cao.", 0,
+    mk(rn, rf, "e", 8, "h"), mk(ln, lf, "e", 8, "h"));
+  return L;
+})();
+// Giai điệu tay phải các bài phổ biến (đều đã hết bản quyền / dân gian)
+const SONGS = [
+  { id: "mary", name: "Mary Had a Little Lamb", desc: "Chỉ dùng 4 nốt Đô Rê Mi Sol, tay ở vị trí Đô.", key: 0, bpm: 100,
+    rh: "E4/q:3 D4/q:2 C4/q:1 D4/q:2 | E4/q:3 E4/q:3 E4/h:3 | D4/q:2 D4/q:2 D4/h:2 | E4/q:3 G4/q:5 G4/h:5 | E4/q:3 D4/q:2 C4/q:1 D4/q:2 | E4/q:3 E4/q:3 E4/q:3 E4/q:3 | D4/q:2 D4/q:2 E4/q:3 D4/q:2 | C4/w:1" },
+  { id: "twinkle", name: "Twinkle Twinkle Little Star", desc: "Ngôi sao lấp lánh – bài nhập môn kinh điển.", key: 0, bpm: 100,
+    rh: "C4/q:1 C4/q:1 G4/q:4 G4/q:4 | A4/q:5 A4/q:5 G4/h:4 | F4/q:3 F4/q:3 E4/q:2 E4/q:2 | D4/q:1 D4/q:1 C4/h:1 | G4/q:4 G4/q:4 F4/q:3 F4/q:3 | E4/q:2 E4/q:2 D4/h:1 | G4/q:4 G4/q:4 F4/q:3 F4/q:3 | E4/q:2 E4/q:2 D4/h:1 | C4/q:1 C4/q:1 G4/q:4 G4/q:4 | A4/q:5 A4/q:5 G4/h:4 | F4/q:3 F4/q:3 E4/q:2 E4/q:2 | D4/q:1 D4/q:1 C4/h:1" },
+  { id: "bumvang", name: "Kìa con bướm vàng", desc: "Bài thiếu nhi quen thuộc (giai điệu Frère Jacques).", key: 0, bpm: 110,
+    rh: "C4/q:1 D4/q:2 E4/q:3 C4/q:1 | C4/q:1 D4/q:2 E4/q:3 C4/q:1 | E4/q:3 F4/q:4 G4/h:5 | E4/q:3 F4/q:4 G4/h:5 | G4/e:4 A4/e:5 G4/e:4 F4/e:3 E4/q:2 C4/q:1 | G4/e:4 A4/e:5 G4/e:4 F4/e:3 E4/q:2 C4/q:1 | C4/q:4 G3/q:1 C4/h:4 | C4/q:4 G3/q:1 C4/h:4" },
+  { id: "ode", name: "Ode to Joy – Beethoven", desc: "Khúc hoan ca (Giao hưởng số 9). Tay ở vị trí Đô, chú ý nốt có chấm.", key: 0, bpm: 100,
+    rh: "E4/q:3 E4/q:3 F4/q:4 G4/q:5 | G4/q:5 F4/q:4 E4/q:3 D4/q:2 | C4/q:1 C4/q:1 D4/q:2 E4/q:3 | E4/q.:3 D4/e:2 D4/h:2 | E4/q:3 E4/q:3 F4/q:4 G4/q:5 | G4/q:5 F4/q:4 E4/q:3 D4/q:2 | C4/q:1 C4/q:1 D4/q:2 E4/q:3 | D4/q.:2 C4/e:1 C4/h:1" },
+  { id: "jingle", name: "Jingle Bells", desc: "Điệp khúc bài Giáng sinh quen thuộc, tay ở vị trí Đô.", key: 0, bpm: 120,
+    rh: "E4/q:3 E4/q:3 E4/h:3 | E4/q:3 E4/q:3 E4/h:3 | E4/q:3 G4/q:5 C4/q.:1 D4/e:2 | E4/w:3 | F4/q:4 F4/q:4 F4/q.:4 F4/e:4 | F4/q:4 E4/q:3 E4/q:3 E4/e:3 E4/e:3 | E4/q:3 D4/q:2 D4/q:2 E4/q:3 | D4/h:2 G4/h:5 | E4/q:3 E4/q:3 E4/h:3 | E4/q:3 E4/q:3 E4/h:3 | E4/q:3 G4/q:5 C4/q.:1 D4/e:2 | E4/w:3 | F4/q:4 F4/q:4 F4/q.:4 F4/e:4 | F4/q:4 E4/q:3 E4/q:3 E4/e:3 E4/e:3 | G4/q:5 G4/q:5 F4/q:4 D4/q:2 | C4/w:1" },
+  { id: "london", name: "London Bridge", desc: "Cầu London – tay ở vị trí Rê (ngón 1 trên Rê).", key: 0, bpm: 110,
+    rh: "G4/q.:4 A4/e:5 G4/q:4 F4/q:3 | E4/q:2 F4/q:3 G4/h:4 | D4/q:1 E4/q:2 F4/h:3 | E4/q:2 F4/q:3 G4/h:4 | G4/q.:4 A4/e:5 G4/q:4 F4/q:3 | E4/q:2 F4/q:3 G4/h:4 | D4/h:1 G4/h:4 | E4/q:2 C4/h.:1" },
+  { id: "birthday", name: "Happy Birthday", desc: "Chúc mừng sinh nhật – nhịp 3/4, có đoạn nhảy quãng tám.", key: 0, bpm: 100,
+    rh: "G3/e:1 G3/e:1 | A3/q:2 G3/q:1 C4/q:4 | B3/h:3 G3/e:1 G3/e:1 | A3/q:2 G3/q:1 D4/q:5 | C4/h:4 G3/e:1 G3/e:1 | G4/q:5 E4/q:3 C4/q:1 | B3/q:3 A3/q:2 F4/e:4 F4/e:4 | E4/q:3 C4/q:1 D4/q:2 | C4/h.:1" },
+  { id: "silent", name: "Silent Night (đoạn đầu)", desc: "Đêm thánh vô cùng – nhịp 3/4, chậm và êm.", key: 0, bpm: 80,
+    rh: "G4/q.:3 A4/e:4 G4/q:3 | E4/h.:1 | G4/q.:3 A4/e:4 G4/q:3 | E4/h.:1 | D5/h:5 D5/q:5 | B4/h.:3 | C5/h:4 C5/q:4 | G4/h.:1 | A4/h:3 A4/q:3 | C5/q.:5 B4/e:4 A4/q:3 | G4/q.:2 A4/e:3 G4/q:2 | E4/h.:1 | A4/h:3 A4/q:3 | C5/q.:5 B4/e:4 A4/q:3 | G4/q.:2 A4/e:3 G4/q:2 | E4/h.:1" },
+  { id: "elise", name: "Für Elise – Beethoven (đoạn đầu)", desc: "Có phím đen Rê♯ và Sol♯, phải dời tay nhiều. Bài nâng cao.", key: 0, bpm: 80,
+    rh: "E5/e:5 D#5/e:4 | E5/e:5 D#5/e:4 E5/e:5 B4/e:2 D5/e:4 C5/e:3 | A4/q.:1 C4/e:1 E4/e:2 A4/e:4 | B4/q.:5 E4/e:1 G#4/e:3 B4/e:4 | C5/q.:5 E4/e:1 E5/e:5 D#5/e:4 | E5/e:5 D#5/e:4 E5/e:5 B4/e:2 D5/e:4 C5/e:3 | A4/q.:1 C4/e:1 E4/e:2 A4/e:4 | B4/q.:5 E4/e:1 C5/e:5 B4/e:4 | A4/h.:3" },
+];
+const PRAC = { finger: EXERCISES, song: SONGS };
+const DEMO_LABEL = '▶ Nghe<span class="t"> mẫu</span>';
+state.hand = lsGet("pracHand", "rh") === "lh" ? "lh" : "rh";
+state.pieceIdx = Object.assign({ finger: 0, song: 0 }, lsGet("pracPiece", {}));
+const pracKey = (kind, piece, hand) => kind + ":" + piece.id + (kind === "finger" ? ":" + hand : "");
+const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
+function fillPieceSel(kind) {
+  const sel = $("pieceSel"), st = lsGet("pracStars", {});
+  sel.innerHTML = "";
+  PRAC[kind].forEach((pc, i) => {
+    const n = st[pracKey(kind, pc, state.hand)] || 0;
+    sel.add(new Option(`${i + 1}. ${pc.name}${n ? "  " + starText(n) : ""}`, i, false, i === state.pieceIdx[kind]));
+  });
+}
+const LINE_MAX = 9; // số nốt tối đa trên một dòng khuông
+function startPractice(kind = state.phase) {
+  stopDemo();
+  const list = PRAC[kind], i = Math.min(Math.max(0, +state.pieceIdx[kind] || 0), list.length - 1);
+  state.pieceIdx[kind] = i;
+  const piece = list[i], hand = kind === "finger" ? state.hand : "rh";
+  state.prac = { kind, piece, hand, clef: hand === "lh" ? B : T, notes: parseMusic(piece[hand]),
+    idx: 0, errors: 0, start: 0, done: false, demo: -1, flash: false, badKey: null };
+  fillPieceSel(kind);
+  setupSeg("handSeg", state.hand, v => { state.hand = v; lsSet("pracHand", v); startPractice(); });
+  layoutPractice();
+  renderPractice();
+}
+// Chia dòng theo ô nhịp, tính vị trí x, dấu hóa cần ghi (theo hóa biểu + dấu trong cùng ô nhịp), khung nhìn cố định
+function layoutPractice() {
+  const p = state.prac, key = p.piece.key || 0, keyAcc = keyAccOf(key), b0 = CLEFS[p.clef].bottom;
+  let mem = {}, lastBar = -1;
+  p.notes.forEach(n => {
+    if (n.bar !== lastBar) { mem = {}; lastBar = n.bar; }
+    const eff = n.d in mem ? mem[n.d] : keyAcc[n.d % 7];
+    n.sign = n.acc !== eff ? n.acc : null;
+    mem[n.d] = n.acc;
+  });
+  const bars = [];
+  p.notes.forEach((n, i) => (bars[n.bar] = bars[n.bar] || []).push(i));
+  const lines = []; let cur = [], cnt = 0;
+  bars.filter(Boolean).forEach(b => {
+    if (cur.length && cnt + b.length > LINE_MAX) { lines.push(cur); cur = []; cnt = 0; }
+    cur.push(b); cnt += b.length;
+  });
+  if (cur.length) lines.push(cur);
+  const L = KEY_X + Math.abs(key) * KEY_STEP + 16;
+  p.lines = lines.map((ln, li) => {
+    let u = 0; const pos = [], barU = [];
+    ln.forEach((b, bi) => {
+      if (bi) { barU.push(u + 0.15); u += 0.3; }
+      b.forEach(i => { if (p.notes[i].sign != null) u += 0.65; pos.push([i, u + 0.5]); u += 1; });
+    });
+    const unit = (X1 - 6 - L) / u;
+    pos.forEach(([i, c]) => { p.notes[i].x = L + c * unit; p.notes[i].line = li; });
+    return { idx: pos.map(x => x[0]), barXs: barU.map(c => L + c * unit) };
+  });
+  let minY = TOP, maxY = BOTTOM;
+  p.notes.forEach(n => {
+    const y = yOf(n.d, p.clef), up = n.d < b0 + 4;
+    n.fy = Math.min(TOP - 22, (up && n.type !== "whole" ? y - 3.5 * S : y) - 14);
+    minY = Math.min(minY, n.fy); maxY = Math.max(maxY, y);
+  });
+  const top = Math.min(0, minY - 16);
+  p.ly = Math.max(BOTTOM + 3.5 * S + 10, maxY + 26);
+  p.vb = `0 ${top} 360 ${p.ly + 10 - top}`;
+  const ms = p.notes.map(n => n.midi), lo = Math.floor(Math.min(...ms) / 12) * 12;
+  p.range = [lo, Math.max(lo + 24, Math.ceil((Math.max(...ms) + 1) / 12) * 12)];
+}
+function renderPractice() {
+  const p = state.prac, svg = $("staff");
+  if (!p || !(state.phase in PRAC)) return;
+  const N = p.notes.length, cur = p.demo >= 0 ? p.demo : Math.min(p.idx, N - 1);
+  const li = p.notes[cur].line, ln = p.lines[li], names = $("pracNames").checked;
+  svg.innerHTML = "";
+  svg.setAttribute("viewBox", p.vb);
+  drawLines(svg); drawClef(svg, p.clef);
+  if (p.piece.key) drawKeySig(svg, p.clef, p.piece.key);
+  ln.barXs.forEach(x => bar(svg, x));
+  if (li === p.lines.length - 1) { bar(svg, X1 - 6); bar(svg, X1 - 3, "", 3); } // vạch kết thúc bài
+  if (p.lines.length > 1)
+    el("text", { x: X1, y: +p.vb.split(" ")[1] + 14, class: "pg" }, svg).textContent = `Dòng ${li + 1}/${p.lines.length}`;
+  ln.idx.forEach(i => {
+    const n = p.notes[i];
+    let cls = "";
+    if (p.demo >= 0) cls = i === p.demo ? "hl" : "";
+    else if (p.done || i < p.idx) cls = n.err ? "bad" : "good";
+    else if (i === p.idx) cls = p.flash ? "bad" : "hl";
+    const r = drawNote(svg, n.x, n.d, p.clef, { type: n.type, cls, acc: n.sign === 1 || n.sign === -1 ? n.sign : 0, natural: n.sign === 0 });
+    if (n.dot) {
+      const onLine = (((n.d - CLEFS[p.clef].bottom) % 2) + 2) % 2 === 0;
+      el("circle", { cx: n.x + S * (n.type === "whole" ? 1.25 : 1.05), cy: r.y - (onLine ? S / 2 : 0), r: 2.2, class: "f " + cls }, svg);
+    }
+    if (n.fing) el("text", { x: n.x, y: n.fy, class: "fing " + cls }, svg).textContent = n.fing;
+    if (names) el("text", { x: n.x, y: p.ly, class: "lbl " + (cls === "hl" ? "" : cls) }, svg).textContent = nameOf(n.d, n.acc).vi;
+  });
+  // Bàn phím: tô sáng phím cần bấm + số ngón
+  const t = p.notes[cur], show = !p.done && (p.demo >= 0 || $("pracHint").checked);
+  drawKeyboard(show ? [t.midi] : null,
+    { range: p.range, labels: show && t.fing ? { [t.midi]: t.fing } : {}, bad: p.badKey != null ? [p.badKey] : [] });
+  if (p.done) return;
+  const nm = names || $("pracHint").checked ? " · " + nameOf(t.d, t.acc).vi : "";
+  $("result").innerHTML = p.demo >= 0
+    ? '<div class="big">🎧 Đang phát mẫu…</div><span class="hint">Bấm ⏹ Dừng hoặc bấm phím để tự chơi</span>'
+    : !p.start
+      ? `<div class="small"><b>${p.piece.name}</b></div><span class="hint desc">${p.piece.desc}</span>` +
+        `<span class="hint">Bấm nốt đầu tiên để bắt đầu: ngón <b>${t.fing}</b>${nm}</span>`
+      : `<div class="big">Ngón <span class="fn">${t.fing || "–"}</span>${nm}</div>` +
+        `<div class="small">Nốt ${p.idx + 1}/${N} · Sai ${p.errors}</div>`;
+}
+function practicePress(m, fromMidi) {
+  const p = state.prac;
+  if (!p || !(state.phase in PRAC)) return;
+  if (p.demo >= 0) stopDemo();
+  if (!fromMidi) play(m); // đàn MIDI tự phát tiếng rồi
+  if (p.done) return;
+  if (!p.start) p.start = performance.now();
+  const n = p.notes[p.idx];
+  clearTimeout(p.flashT);
+  if (m === n.midi) {
+    p.flash = false; p.badKey = null; p.idx++;
+    if (p.idx >= p.notes.length) return finishPractice();
+  } else {
+    p.errors++; n.err = true; p.flash = true; p.badKey = m;
+    p.flashT = setTimeout(() => { p.flash = false; p.badKey = null; if (state.prac === p) renderPractice(); }, 400);
+  }
+  renderPractice();
+}
+function finishPractice() {
+  const p = state.prac, N = p.notes.length, ms = performance.now() - p.start;
+  p.done = true;
+  const stars = p.errors === 0 ? 3 : p.errors <= Math.max(1, Math.round(N * 0.1)) ? 2 : 1;
+  const st = lsGet("pracStars", {}), k = pracKey(p.kind, p.piece, p.hand), prev = st[k] || 0;
+  if (stars > prev) { st[k] = stars; lsSet("pracStars", st); }
+  fillPieceSel(p.kind);
+  renderPractice();
+  drawKeyboard(null, { range: p.range });
+  const acc = Math.round(100 * N / (N + p.errors));
+  $("result").innerHTML = `<div class="big ok">${stars === 3 ? "🏆 Hoàn hảo!" : "🎉 Hoàn thành!"}</div>` +
+    `<div class="small"><span style="color:var(--key-hl);font-size:1.2rem">${starText(stars)}</span> · Chính xác ${acc}% · Sai ${p.errors} · ${fmtTime(ms)}` +
+    (stars > prev && prev ? " · Kỷ lục mới!" : "") + `</div><span class="hint">↺ Chơi lại hoặc Bài tiếp →</span>`;
+  const c = stars === 3 ? ["#fde047", "#f59e0b"] : ["#4ade80", "#22d3ee"];
+  const b = showBurst(stars === 3 ? "PERFECT!" : "DONE!", stars === 3 ? "🏆" : "🎉", starText(stars), c[0], c[1]);
+  launchConfetti(stars === 3 ? 40 : 24, [c[0], c[1], "#ffffff", "#fde047"], b);
+  setTimeout(() => celebrateSound(stars === 3), 350);
+  track("done", p.kind + "-" + p.piece.id);
+}
+function startDemo() {
+  const p = state.prac;
+  if (!p) return;
+  stopDemo();
+  const spb = 60 / (p.piece.bpm || 100);
+  let t = 0;
+  p.demoT = p.notes.map((n, i) => {
+    const h = setTimeout(() => { p.demo = i; play(n.midi); renderPractice(); }, t * 1000);
+    t += n.beats * spb;
+    return h;
+  });
+  p.demoT.push(setTimeout(stopDemo, t * 1000 + 200));
+  p.demo = 0;
+  $("soundBtn").innerHTML = "⏹ Dừng";
+}
+function stopDemo() {
+  const p = state.prac;
+  if (!p || !p.demoT) return;
+  p.demoT.forEach(clearTimeout); p.demoT = null; p.demo = -1;
+  if (state.phase in PRAC) {
+    $("soundBtn").innerHTML = DEMO_LABEL;
+    renderPractice();
+    if (p.done) drawKeyboard(null, { range: p.range });
+  }
+}
+const toggleDemo = () => state.prac && state.prac.demoT ? stopDemo() : startDemo();
+function nextPiece() {
+  const k = state.phase;
+  state.pieceIdx[k] = (state.pieceIdx[k] + 1) % PRAC[k].length;
+  lsSet("pracPiece", state.pieceIdx);
+  startPractice(k);
+}
+// Bàn phím máy tính: hàng A S D F G H J K = phím trắng Đô → Đô, hàng W E T Y U O P = phím đen
+const PC_KEYS = { a: 0, w: 1, s: 2, e: 3, d: 4, f: 5, t: 6, g: 7, y: 8, h: 9, u: 10, j: 11, k: 12, o: 13, l: 14, p: 15, ";": 16 };
+function pcBase() { // Đô của quãng tám chứa nốt cần bấm
+  const p = state.prac, n = p && p.notes[Math.min(p.idx, p.notes.length - 1)];
+  return n ? Math.floor(n.midi / 12) * 12 : 60;
+}
+
 // ===================== Kết nối đàn qua MIDI (Web MIDI) =====================
 // Học nốt: bấm đúng phím (mặc định phải đúng quãng tám). Luyện nghe: bấm phím đúng âm.
 // Hợp âm: bấm đủ các nốt của hợp âm (thể đảo nào cũng được).
@@ -1482,13 +1811,14 @@ function bindMidiInputs() {
 function onMidiMessage(e) {
   const [st, note, vel] = e.data, cmd = st & 0xf0;
   if (cmd === 0x90 && vel > 0) midiNoteOn(note);
-  else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) { midi.held.delete(note); drawKeyboard(state.kbdHl); }
+  else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) { midi.held.delete(note); redrawKeyboard(); }
 }
 function midiNoteOn(m) {
   midi.held.add(m);
-  drawKeyboard(state.kbdHl);
+  redrawKeyboard();
   const p = state.phase;
-  if (p === "note") midiAnswerNote(m);
+  if (p in PRAC) practicePress(m, true);
+  else if (p === "note") midiAnswerNote(m);
   else if (p === "ear") midiAnswerEar(m);
   else if (p === "chord") midiAnswerChord();
 }
@@ -1530,8 +1860,22 @@ document.querySelectorAll("#noteClef button").forEach(b => b.onclick = () => set
 setupSeg("noteMax", state.noteMax, v => { state.noteMax = +v; lsSet("noteMax", state.noteMax); if (state.phase === "note") newNote(); });
 $("timer").addEventListener("change", () => { state.tLimit = T_MAX; resetStats(); view(state.phase); if (state.phase === "note") newNote(); });
 setAuto(autoOn);
-$("nextBtn").onclick = byMode(newSymbol, newEar, newNote, newChord);
-$("soundBtn").onclick = byMode(() => {}, playEar, playNotes, playChord);
+$("nextBtn").onclick = () => state.phase in PRAC ? nextPiece() : byMode(newSymbol, newEar, newNote, newChord)();
+$("soundBtn").onclick = () => state.phase in PRAC ? toggleDemo() : byMode(() => {}, playEar, playNotes, playChord)();
+$("restartBtn").onclick = () => startPractice();
+$("pieceSel").onchange = () => { state.pieceIdx[state.phase] = +$("pieceSel").value; lsSet("pracPiece", state.pieceIdx); $("pieceSel").blur(); startPractice(); };
+["pracHint", "pracNames"].forEach(id => {
+  const v = lsGet("opt_" + id, null);
+  if (v !== null) $(id).checked = v;
+  $(id).addEventListener("change", () => { lsSet("opt_" + id, $(id).checked); renderPractice(); });
+});
+$("kbd").addEventListener("pointerdown", e => {
+  if (!(state.phase in PRAC)) return;
+  const m = e.target.getAttribute && e.target.getAttribute("data-m");
+  if (m == null) return;
+  e.preventDefault();
+  practicePress(+m, false);
+});
 buildAccSel();
 initChordOpts();
 
@@ -1558,6 +1902,14 @@ $("acc").addEventListener("change", () => {
 document.addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase(), p = state.phase;
+  if (p in PRAC) {
+    if (e.target.tagName === "SELECT") e.target.blur(); // tránh gõ phím làm đổi bài đang chọn
+    if (k === "enter" || k === "arrowright") { e.preventDefault(); nextPiece(); }
+    else if (k === " ") { e.preventDefault(); toggleDemo(); }
+    else if (k === "r") startPractice();
+    else if (k in PC_KEYS) { e.preventDefault(); if (!e.repeat) practicePress(pcBase() + PC_KEYS[k], false); }
+    return;
+  }
   const noteIdx = k >= "1" && k <= "7" ? +k - 1 : LETTER_KEY[k];
   if (p === "note" && accOn()) {
     const v = k === "-" || k === "_" ? -1 : k === "+" || k === "=" || k === "#" ? 1 : k === "0" ? 0 : null;
@@ -1586,12 +1938,13 @@ function rerender() {
   else if (state.phase === "ear") renderEar();
   else if (state.phase === "sym") renderSym();
   else if (state.phase === "chord") renderChord();
+  else if (state.phase in PRAC) renderPractice();
 }
 
 setMode("treble"); // luôn mở app ở chế độ Khóa Sol
 $("midiBtn").onclick = () => connectMidi(false);
 Object.entries(KB_SIZES).forEach(([k, v]) => $("kbSize").add(new Option(v.label, k, false, k === kbSize)));
-$("kbSize").onchange = () => { kbSize = $("kbSize").value; lsSet("kbSize", kbSize); drawKeyboard(state.kbdHl); };
+$("kbSize").onchange = () => { kbSize = $("kbSize").value; lsSet("kbSize", kbSize); redrawKeyboard(); };
 if (lsGet("midiOn", false)) connectMidi(true); // lần trước đã kết nối thì tự kết nối lại
 
 // Tải font ký hiệu âm nhạc xong thì đo và vẽ lại cho chuẩn
@@ -1625,6 +1978,7 @@ fetch("https://nhonpiano.goatcounter.com/counter/%2Fpiano.json")
 // so-ngay-X   : đã dùng app bao nhiêu ngày khác nhau
 // tra-loi-N   : số câu đã trả lời trong một lần mở
 // tab-...     : chế độ được dùng (mỗi lần mở chỉ gửi 1 lần cho mỗi tab)
+// xong-...    : đã chơi xong một bài Luyện ngón / Bài hát
 (function () {
   const sent = new Set();
   function ev(name) {
@@ -1667,13 +2021,15 @@ fetch("https://nhonpiano.goatcounter.com/counter/%2Fpiano.json")
     for (const m of [1, 5, 15, 30, 60]) if (active >= m * 60) ev("dung-" + m + "-phut");
   }, 15000);
 
-  const TABS = { note: "tab-hoc-not", chord: "tab-hop-am", ear: "tab-luyen-nghe", sym: "tab-ky-hieu" };
+  const TABS = { note: "tab-hoc-not", chord: "tab-hop-am", ear: "tab-luyen-nghe", sym: "tab-ky-hieu",
+    finger: "tab-luyen-ngon", song: "tab-bai-hat" };
   window.__appTrack = function (type, data) {
     if (type === "answer") {
       touch();
       answers++;
       for (const m of [10, 50, 100, 200]) if (answers >= m) ev("tra-loi-" + m);
     } else if (type === "tab" && TABS[data]) ev(TABS[data]);
+    else if (type === "done") { touch(); ev("xong-" + data); } // hoàn thành một bài (vd: xong-song-twinkle)
   };
   ev(TABS.note); // app luôn mở ở tab Học nốt (trước khi đoạn này chạy)
 })();

@@ -44,6 +44,7 @@ fetch("https://__GC__.goatcounter.com/counter/%2Fpiano.json")
 // so-ngay-X   : đã dùng app bao nhiêu ngày khác nhau
 // tra-loi-N   : số câu đã trả lời trong một lần mở
 // tab-...     : chế độ được dùng (mỗi lần mở chỉ gửi 1 lần cho mỗi tab)
+// xong-...    : đã chơi xong một bài Luyện ngón / Bài hát
 (function () {
   const sent = new Set();
   function ev(name) {
@@ -86,13 +87,15 @@ fetch("https://__GC__.goatcounter.com/counter/%2Fpiano.json")
     for (const m of [1, 5, 15, 30, 60]) if (active >= m * 60) ev("dung-" + m + "-phut");
   }, 15000);
 
-  const TABS = { note: "tab-hoc-not", chord: "tab-hop-am", ear: "tab-luyen-nghe", sym: "tab-ky-hieu" };
+  const TABS = { note: "tab-hoc-not", chord: "tab-hop-am", ear: "tab-luyen-nghe", sym: "tab-ky-hieu",
+    finger: "tab-luyen-ngon", song: "tab-bai-hat" };
   window.__appTrack = function (type, data) {
     if (type === "answer") {
       touch();
       answers++;
       for (const m of [10, 50, 100, 200]) if (answers >= m) ev("tra-loi-" + m);
     } else if (type === "tab" && TABS[data]) ev(TABS[data]);
+    else if (type === "done") { touch(); ev("xong-" + data); } // hoàn thành một bài (vd: xong-song-twinkle)
   };
   ev(TABS.note); // app luôn mở ở tab Học nốt (trước khi đoạn này chạy)
 })();
