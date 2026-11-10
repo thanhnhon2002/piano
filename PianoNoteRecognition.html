@@ -1894,8 +1894,9 @@ function finishPractice() {
   $("result").innerHTML = `<div class="big ok">${stars === 3 ? "🏆 Hoàn hảo!" : "🎉 Hoàn thành!"}</div>` +
     `<div class="small"><span style="color:var(--key-hl);font-size:1.2rem">${starText(stars)}</span> · Chính xác ${acc}% · Sai ${p.errors} · ${fmtTime(ms)}` +
     (stars > prev && prev ? " · Kỷ lục mới!" : "") + `</div><span class="hint">` +
-    (p.kind === "finger" ? "Tự bắt đầu lại sau 1,5 giây…" : "↺ Chơi lại hoặc Bài tiếp →") + `</span>`;
-  if (p.kind === "finger") setTimeout(() => { if (state.prac === p && state.phase === "finger" && !p.demoT) startPractice("finger"); }, 1500);
+    "Tự bắt đầu lại sau 1,5 giây… (hoặc bấm Bài tiếp →)" + `</span>`;
+  // Luyện ngón và Bài hát: tự quay về đầu bài sau 1,5 giây (trừ khi đã chuyển bài / chuyển tab / đang nghe mẫu)
+  setTimeout(() => { if (state.prac === p && state.phase === p.kind && !p.demoT) startPractice(p.kind); }, 1500);
   const c = stars === 3 ? ["#fde047", "#f59e0b"] : ["#4ade80", "#22d3ee"];
   const b = showBurst(stars === 3 ? "PERFECT!" : "DONE!", stars === 3 ? "🏆" : "🎉", starText(stars), c[0], c[1]);
   launchConfetti(stars === 3 ? 40 : 24, [c[0], c[1], "#ffffff", "#fde047"], b);
