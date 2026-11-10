@@ -957,9 +957,10 @@ function renderNote() {
   notes.forEach((it, j) => {
     const x = xs[j], cur = n > 1 && !state.revealed && j === state.idx;
     let cls = "";
-    if (it.ans) cls = noteRight(it) ? "good" : "bad";
-    else if (state.revealed) cls = n === 1 ? "good" : "dim";
-    else if (cur) cls = state.flash ? "bad" : "hl";
+    // Khuông chỉ dùng 2 màu cho đỡ rối mắt: xanh dương = nốt đang đọc, xanh lá = nốt đã xong / đáp án (không tô đỏ)
+    if (cur) cls = "hl";
+    else if (it.done || (n === 1 && state.revealed)) cls = "good";
+    else if (state.revealed) cls = "dim";
     const disp = displayOf(it.d, state.clef), y = yOf(disp.d, state.clef);
     if (cur) { // khung sáng quanh nốt đang đọc (giống Luyện ngón)
       const y0 = Math.min(TOP - 8, y - 3.5 * S - 4), y1 = Math.max(BOTTOM + 8, y + 3.5 * S + 4);
@@ -989,10 +990,8 @@ function renderNote() {
   svg.setAttribute("viewBox", `0 ${top} 360 ${bottom - top}`);
   marks.forEach(({ x, cur, it }) => {
     if (n > 1 && (it.done || state.revealed)) { // chỉ hiện tên khi đã bấm đúng nốt đó
-      const ok = noteRight(it), name = nameOf(it.d, it.acc).vi;
-      el("text", { x, y: labelY, class: "lbl " + (it.ans ? (ok ? "good" : "bad") : "") }, svg)
-        .textContent = it.ans ? label(it.ans) : "—";
-      if (state.revealed && !ok) el("text", { x, y: labelY + 14, class: "lbl good" }, svg).textContent = "→ " + name;
+      const name = nameOf(it.d, it.acc).vi;
+      el("text", { x, y: labelY, class: "lbl " + (it.done ? "good" : "") }, svg).textContent = it.done ? name : "→ " + name;
     }
   });
 }
@@ -1847,8 +1846,8 @@ function renderPractice(rebuild) {
   E.forEach((e, k) => e.notes.forEach(n => {
     let cls = "";
     if (p.demo >= 0) cls = k === p.demo ? "hl" : "";
-    else if (p.done || k < p.idx) cls = e.err ? "bad" : "good";
-    else if (k === p.idx) cls = n.hit ? "good" : p.flash ? "bad" : "hl";
+    else if (p.done || k < p.idx) cls = "good"; // không tô đỏ trên khuông (chỉ phím bấm sai nháy đỏ trên bàn phím)
+    else if (k === p.idx) cls = n.hit ? "good" : "hl";
     n.g.setAttribute("class", "n " + cls);
   }));
   // Đầu bài: nốt đứng yên ở đầu khuông, khung sáng chạy theo; tới giữa khuông thì dải nốt mới trượt sang trái;
