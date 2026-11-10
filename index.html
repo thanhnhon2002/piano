@@ -1575,6 +1575,36 @@ const EXERCISES = (() => {
   let [ln, lf] = upDown("C2 D2 E2 F2 G2 A2 B2 C3 D3 E3 F3 G3 A3 B3 C4", "543213214321321");
   add("scale-c2", "Gam Đô trưởng 2 quãng tám", "Nốt móc đơn, luồn ngón liên tục. Bài nâng cao.", 0,
     mk(rn, rf, "e", 8, "h"), mk(ln, lf, "e", 8, "h"));
+  const FF = "F4 G4 A4 Bb4 C5 Bb4 A4 G4 F4 G4 A4 Bb4 C5 Bb4 A4 G4 F4".split(" ");
+  add("five-f", "5 ngón – vị trí Fa (có Si♭)", "Ngón 4 đặt trên phím đen Si♭.", 0, mk(FF, FIVE_F), mk(octShift(FF, -1), mirror(FIVE_F)));
+  f = five("A4", -2);
+  add("five-am", "5 ngón – vị trí La", "La Si Đô Rê Mi – vị trí của giọng La thứ.", 0, mk(f.rh, FIVE_F), mk(f.lh, mirror(FIVE_F)));
+  const TU = "C4 D4 C4 E4 C4 F4 C4 G4 C4 F4 C4 E4 C4 D4 C4", TU_F = "121314151413121";
+  add("thumb", "Ngón cái làm trụ", "Ngón cái giữ ở Đô, các ngón 2-3-4-5 lần lượt bấm. Giúp tách ngón.", 0,
+    mk(TU, TU_F, "q", 4, "h"), mk(octShift(TU, -1), mirror(TU_F), "q", 4, "h"));
+  scale("scale-a", "Gam La trưởng (Fa♯, Đô♯, Sol♯)", "Hóa biểu 3 dấu thăng.", 3,
+    "A4 B4 C#5 D5 E5 F#5 G#5 A5", "12312345", "A2 B2 C#3 D3 E3 F#3 G#3 A3", "54321321");
+  scale("scale-e", "Gam Mi trưởng (4 dấu thăng)", "Fa♯, Đô♯, Sol♯, Rê♯ – nhiều phím đen, giữ cổ tay cao.", 4,
+    "E4 F#4 G#4 A4 B4 C#5 D#5 E5", "12312345", "E3 F#3 G#3 A3 B3 C#4 D#4 E4", "54321321");
+  scale("scale-em", "Gam Mi thứ tự nhiên (Fa♯)", "Giọng thứ song song với Sol trưởng.", 1,
+    "E4 F#4 G4 A4 B4 C5 D5 E5", "12312345", "E3 F#3 G3 A3 B3 C4 D4 E4", "54321321");
+  scale("scale-dm", "Gam Rê thứ tự nhiên (Si♭)", "Giọng thứ song song với Fa trưởng.", -1,
+    "D4 E4 F4 G4 A4 Bb4 C5 D5", "12312345", "D3 E3 F3 G3 A3 Bb3 C4 D4", "54321321");
+  scale("scale-ahm", "Gam La thứ hòa âm (Sol♯)", "Bậc 7 nâng lên nửa cung: Sol♯ – âm hưởng phương Đông.", 0,
+    "A4 B4 C5 D5 E5 F5 G#5 A5", "12312345", "A2 B2 C3 D3 E3 F3 G#3 A3", "54321321");
+  add("arp-g", "Hợp âm rải Sol trưởng", "Sol – Si – Rê – Sol.", 0,
+    mk("G4 B4 D5 G5 D5 B4 G4 B4 D5 G5 D5 B4 G4", "1235321235321"),
+    mk("G2 B2 D3 G3 D3 B2 G2 B2 D3 G3 D3 B2 G2", "5321235321235"));
+  add("arp-f", "Hợp âm rải Fa trưởng", "Fa – La – Đô – Fa.", 0,
+    mk("F4 A4 C5 F5 C5 A4 F4 A4 C5 F5 C5 A4 F4", "1235321235321"),
+    mk("F2 A2 C3 F3 C3 A2 F2 A2 C3 F3 C3 A2 F2", "5321235321235"));
+  [rn, rf] = upDown("C4 C#4 D4 D#4 E4 F4 F#4 G4 G#4 A4 A#4 B4 C5", "1313123131312");
+  [ln, lf] = upDown("C3 C#3 D3 D#3 E3 F3 F#3 G3 G#3 A3 A#3 B3 C4", "1313213131321");
+  add("chrom", "Gam nửa cung (crômatic)", "Đi qua tất cả phím trắng và đen: ngón 3 trên phím đen, ngón 1 trên phím trắng.", 0,
+    mk(rn, rf, "e", 8), mk(ln, lf, "e", 8));
+  const ORDER = ["five-c", "five-g", "five-d", "five-f", "five-am", "thirds", "thumb", "scale-c", "arp-c", "scale-g", "arp-g",
+    "scale-f", "arp-f", "scale-am", "scale-d", "scale-em", "scale-dm", "scale-ahm", "hanon1", "scale-a", "scale-e", "chrom", "scale-c2"];
+  L.sort((x, y) => ORDER.indexOf(x.id) - ORDER.indexOf(y.id));
   return L;
 })();
 // Giai điệu tay phải các bài phổ biến (đều đã hết bản quyền / dân gian)
@@ -1595,13 +1625,34 @@ const SONGS = [
     rh: "G3/e:1 G3/e:1 | A3/q:2 G3/q:1 C4/q:4 | B3/h:3 G3/e:1 G3/e:1 | A3/q:2 G3/q:1 D4/q:5 | C4/h:4 G3/e:1 G3/e:1 | G4/q:5 E4/q:3 C4/q:1 | B3/q:3 A3/q:2 F4/e:4 F4/e:4 | E4/q:3 C4/q:1 D4/q:2 | C4/h.:1" },
   { id: "silent", name: "Silent Night (đoạn đầu)", desc: "Đêm thánh vô cùng – nhịp 3/4, chậm và êm.", key: 0, bpm: 80,
     rh: "G4/q.:3 A4/e:4 G4/q:3 | E4/h.:1 | G4/q.:3 A4/e:4 G4/q:3 | E4/h.:1 | D5/h:5 D5/q:5 | B4/h.:3 | C5/h:4 C5/q:4 | G4/h.:1 | A4/h:3 A4/q:3 | C5/q.:5 B4/e:4 A4/q:3 | G4/q.:2 A4/e:3 G4/q:2 | E4/h.:1 | A4/h:3 A4/q:3 | C5/q.:5 B4/e:4 A4/q:3 | G4/q.:2 A4/e:3 G4/q:2 | E4/h.:1" },
+  { id: "hotcross", name: "Hot Cross Buns", desc: "Bài dễ nhất: chỉ 3 nốt Mi – Rê – Đô.", key: 0, bpm: 100,
+    rh: "E4/q:3 D4/q:2 C4/h:1 | E4/q:3 D4/q:2 C4/h:1 | C4/e:1 C4/e:1 C4/e:1 C4/e:1 D4/e:2 D4/e:2 D4/e:2 D4/e:2 | E4/q:3 D4/q:2 C4/h:1" },
+  { id: "lightly", name: "Lightly Row (Hänschen klein)", desc: "Bài dân ca Đức quen thuộc, tay ở vị trí Đô.", key: 0, bpm: 110,
+    rh: "G4/q:5 E4/q:3 E4/h:3 | F4/q:4 D4/q:2 D4/h:2 | C4/q:1 D4/q:2 E4/q:3 F4/q:4 | G4/q:5 G4/q:5 G4/h:5 | G4/q:5 E4/q:3 E4/h:3 | F4/q:4 D4/q:2 D4/h:2 | C4/q:1 E4/q:3 G4/q:5 G4/q:5 | C4/w:1 | D4/q:2 D4/q:2 D4/q:2 D4/q:2 | D4/q:2 E4/q:3 F4/h:4 | E4/q:3 E4/q:3 E4/q:3 E4/q:3 | E4/q:3 F4/q:4 G4/h:5 | G4/q:5 E4/q:3 E4/h:3 | F4/q:4 D4/q:2 D4/h:2 | C4/q:1 E4/q:3 G4/q:5 G4/q:5 | C4/w:1" },
+  { id: "auclair", name: "Au Clair de la Lune", desc: "Dân ca Pháp. Đoạn giữa dời tay xuống vị trí Sol (ngón 1 trên Sol3).", key: 0, bpm: 100,
+    rh: "C4/q:1 C4/q:1 C4/q:1 D4/q:2 | E4/h:3 D4/h:2 | C4/q:1 E4/q:3 D4/q:2 D4/q:2 | C4/w:1 | C4/q:1 C4/q:1 C4/q:1 D4/q:2 | E4/h:3 D4/h:2 | C4/q:1 E4/q:3 D4/q:2 D4/q:2 | C4/w:1 | D4/q:5 D4/q:5 D4/q:5 D4/q:5 | A3/h:2 A3/h:2 | D4/q:5 C4/q:4 B3/q:3 A3/q:2 | G3/w:1 | C4/q:1 C4/q:1 C4/q:1 D4/q:2 | E4/h:3 D4/h:2 | C4/q:1 E4/q:3 D4/q:2 D4/q:2 | C4/w:1" },
+  { id: "macdonald", name: "Old MacDonald Had a Farm", desc: "Giọng Sol trưởng; tay đặt Rê – Mi – Sol – La – Si (bỏ qua Fa♯).", key: 1, bpm: 110,
+    rh: "G4/q:3 G4/q:3 G4/q:3 D4/q:1 | E4/q:2 E4/q:2 D4/h:1 | B4/q:5 B4/q:5 A4/q:4 A4/q:4 | G4/h.:3 D4/q:1 | G4/q:3 G4/q:3 G4/q:3 D4/q:1 | E4/q:2 E4/q:2 D4/h:1 | B4/q:5 B4/q:5 A4/q:4 A4/q:4 | G4/w:3" },
+  { id: "rowboat", name: "Row, Row, Row Your Boat", desc: "Nhịp 6/8 nhún nhảy, có đoạn nhảy lên Đô5.", key: 0, bpm: 100,
+    rh: "C4/q.:1 C4/q.:1 | C4/q:1 D4/e:2 E4/q.:3 | E4/q:3 D4/e:2 E4/q:3 F4/e:4 | G4/h.:5 | C5/e:5 C5/e:5 C5/e:5 G4/e:2 G4/e:2 G4/e:2 | E4/e:3 E4/e:3 E4/e:3 C4/e:1 C4/e:1 C4/e:1 | G4/q:5 F4/e:4 E4/q:3 D4/e:2 | C4/h.:1" },
+  { id: "wewish", name: "We Wish You a Merry Christmas", desc: "Bài Giáng sinh nhịp 3/4, tay ở vị trí Sol3.", key: 0, bpm: 120,
+    rh: "G3/q:1 | C4/q:4 C4/e:4 D4/e:5 C4/e:4 B3/e:3 | A3/q:2 A3/q:2 A3/q:2 | D4/q:4 D4/e:4 E4/e:5 D4/e:4 C4/e:3 | B3/q:2 G3/q:1 G3/q:1 | E4/q:3 E4/e:3 F4/e:4 E4/e:3 D4/e:2 | C4/q:4 A3/q:2 G3/e:1 G3/e:1 | A3/q:2 D4/q:5 B3/q:3 | C4/h:4" },
+  { id: "canon", name: "Canon in D – Pachelbel (giai điệu)", desc: "Nốt trắng chậm rãi, giọng Rê trưởng. Đi xuống vắt ngón 3 qua ngón cái.", key: 2, bpm: 70,
+    rh: "F#5/h:5 E5/h:4 | D5/h:3 C#5/h:2 | B4/h:1 A4/h:3 | B4/h:4 C#5/h:5 | D5/h:5 C#5/h:4 | B4/h:3 A4/h:2 | G4/h:1 F#4/h:3 | G4/h:4 E4/h:2 | D4/w:1" },
+  { id: "minuet", name: "Minuet in G – Petzold (8 ô nhịp đầu)", desc: "Bài kinh điển trong sổ tay Anna Magdalena Bach. Nhịp 3/4, dời tay nhiều.", key: 1, bpm: 100,
+    rh: "D5/q:5 G4/e:1 A4/e:2 B4/e:3 C5/e:4 | D5/q:5 G4/q:1 G4/q:1 | E5/q:4 C5/e:2 D5/e:3 E5/e:4 F#5/e:5 | G5/q:5 G4/q:1 G4/q:1 | C5/q:4 D5/e:5 C5/e:4 B4/e:3 A4/e:2 | B4/q:3 C5/e:4 B4/e:3 A4/e:2 G4/e:1 | F#4/q:1 G4/e:2 A4/e:3 B4/e:4 G4/e:2 | A4/h.:3" },
   { id: "elise", name: "Für Elise – Beethoven (đoạn đầu)", desc: "Có phím đen Rê♯ và Sol♯, phải dời tay nhiều. Bài nâng cao.", key: 0, bpm: 80,
     rh: "E5/e:5 D#5/e:4 | E5/e:5 D#5/e:4 E5/e:5 B4/e:2 D5/e:4 C5/e:3 | A4/q.:1 C4/e:1 E4/e:2 A4/e:4 | B4/q.:5 E4/e:1 G#4/e:3 B4/e:4 | C5/q.:5 E4/e:1 E5/e:5 D#5/e:4 | E5/e:5 D#5/e:4 E5/e:5 B4/e:2 D5/e:4 C5/e:3 | A4/q.:1 C4/e:1 E4/e:2 A4/e:4 | B4/q.:5 E4/e:1 C5/e:5 B4/e:4 | A4/h.:3" },
 ];
 // Bè tay trái: đệm bass trong vị trí Đô (Đô3 = ngón 5 … Sol3 = ngón 1).
 // Mỗi ô nhịp ghi 1 hợp âm ("C": nốt gốc + quãng 5) hoặc 2 hợp âm ("F C": mỗi hợp âm 1 nốt gốc).
-const LH_V = { C: ["C3", 5, "G3", 1], F: ["F3", 2, "C3", 5], G: ["G3", 1, "D3", 4] };
-function bassLine(chart, beats = 4) {
+// Bộ "g": tay trái ở vị trí Sol2 (Sol2 = ngón 5 … Rê3 = ngón 1) cho bài có giai điệu xuống thấp hoặc giọng Sol.
+const LH_SETS = {
+  c: { C: ["C3", 5, "G3", 1], F: ["F3", 2, "C3", 5], G: ["G3", 1, "D3", 4] },
+  g: { G: ["G2", 5, "D3", 1], C: ["C3", 2, "G2", 5], D: ["D3", 1, "A2", 4], F: ["F2", 5, "C3", 1] },
+};
+function bassLine(chart, beats = 4, set = "c") {
+  const LH_V = LH_SETS[set];
   return chart.map((c, i) => {
     const ch = c.split(" ").map(x => LH_V[x]), [a, b] = ch, two = ch.length === 2;
     const tail = beats === 4 ? "h" : "q";
@@ -1617,13 +1668,26 @@ const SONG_LH = {
   ode: bassLine(["C", "G", "C", "G", "C", "G", "C", "G C"]),
   jingle: bassLine(["C", "C", "C", "C", "F", "C", "G", "G", "C", "C", "C", "C", "F", "C", "G", "C"]),
   london: bassLine(["C", "C", "G", "C", "C", "C", "G", "C"]),
-  birthday: "R/q | " + bassLine(["C", "G", "G", "C", "C", "F", "C G", "C"], 3),
+  birthday: "R/q | " + bassLine(["C", "G", "G", "C", "C", "F", "C G", "C"], 3, "g"),
   silent: bassLine(["C", "C", "C", "C", "G", "G", "C", "C", "F", "F", "C", "C", "F", "F", "C", "C"], 3),
+  hotcross: bassLine(["C", "C", "C G", "C"]),
+  lightly: bassLine(["C", "G", "C", "C", "C", "G", "C", "C", "G", "G", "C", "C", "C", "G", "C", "C"]),
+  auclair: bassLine(["C", "C G", "C G", "C", "C", "C G", "C G", "C", "G", "D", "G", "G", "C", "C G", "C G", "C"], 4, "g"),
+  macdonald: bassLine(["G", "C G", "G D", "G", "G", "C G", "G D", "G"], 4, "g"),
+  rowboat: bassLine(["C", "C", "C", "C", "C", "C", "G", "C"], 3),
+  wewish: "R/q | " + bassLine(["C", "F", "D", "G", "C", "F", "G"], 3, "g") + " | C3/h:2",
+  canon: "D3/h:1 A2/h:3 | B2/h:2 F#2/h:5 | G2/h:4 D3/h:1 | G2/h:4 A2/h:3 | D3/h:1 A2/h:3 | B2/h:2 F#2/h:5 | G2/h:4 D3/h:1 | G2/h:4 A2/h:3 | D3/w:1",
+  minuet: bassLine(["G", "G", "C", "G", "C", "G", "D", "D"], 3, "g"),
   // Für Elise: tay trái rải hợp âm La thứ / Mi trưởng như bản gốc, xen kẽ với tay phải
   elise: "R/q | R/h. | A2/e:5 E3/e:2 A3/e:1 R/q. | E2/e:5 E3/e:2 G#3/e:1 R/q. | A2/e:5 E3/e:2 A3/e:1 R/q. | R/h. | " +
     "A2/e:5 E3/e:2 A3/e:1 R/q. | E2/e:5 E3/e:2 G#3/e:1 R/q. | A2/e:5 E3/e:2 A3/e:1 R/q.",
 };
 SONGS.forEach(sg => { sg.lh = SONG_LH[sg.id]; });
+{ // xếp theo độ khó tăng dần
+  const ORDER = ["hotcross", "mary", "twinkle", "lightly", "bumvang", "auclair", "ode", "macdonald", "jingle", "london",
+    "rowboat", "birthday", "wewish", "silent", "canon", "minuet", "elise"];
+  SONGS.sort((x, y) => ORDER.indexOf(x.id) - ORDER.indexOf(y.id));
+}
 const PRAC = { finger: EXERCISES, song: SONGS };
 const DEMO_LABEL = '▶ Nghe<span class="t"> mẫu</span>';
 state.hand = ["rh", "lh", "both"].includes(lsGet("pracHand", "rh")) ? lsGet("pracHand", "rh") : "rh";
