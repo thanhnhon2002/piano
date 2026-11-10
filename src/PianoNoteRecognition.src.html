@@ -189,14 +189,14 @@
   /* Luyện ngón & Bài hát */
   #staff .fing { font-size: 13px; font-weight: 800; text-anchor: middle; fill: var(--muted); }
   #staff .fing.hl { fill: var(--accent); font-size: 15px; } #staff .fing.good { fill: var(--good); } #staff .fing.bad { fill: var(--bad); }
-  #staff .mov { transition: transform .3s ease; }
+  #staff .mov, #staff .playhead.mv { transition: transform .3s ease; }
   #staff .playhead { fill: var(--accent); opacity: .12; }
   #staff g.n.hl .f { fill: var(--accent); } #staff g.n.hl .s { stroke: var(--accent); }
   #staff g.n.good .f { fill: var(--good); } #staff g.n.good .s { stroke: var(--good); }
   #staff g.n.bad .f { fill: var(--bad); } #staff g.n.bad .s { stroke: var(--bad); }
   #staff g.n.hl .fing { fill: var(--accent); font-size: 15px; } #staff g.n.good .fing, #staff g.n.good .lbl { fill: var(--good); }
   #staff g.n.bad .fing, #staff g.n.bad .lbl { fill: var(--bad); } #staff g.n.hl .lbl { fill: var(--accent); }
-  @media (prefers-reduced-motion: reduce) { #staff .mov { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { #staff .mov, #staff .playhead.mv { transition: none; } }
   #kbd.play rect { cursor: pointer; } #kbd text { pointer-events: none; }
   #restartBtn { flex: 0 0 auto; background: var(--card); color: var(--ink); border: 1px solid var(--border); }
   #pieceSel { max-width: 260px; }
@@ -253,7 +253,7 @@
 
   <div class="settings" id="practiceOpts">
     <label class="kbsel">Bài: <select id="pieceSel"></select></label>
-    <div class="seg" id="handSeg"><button data-v="rh">Tay phải</button><button data-v="lh">Tay trái</button></div>
+    <div class="seg" id="handSeg"><button data-v="rh">Tay phải</button><button data-v="lh">Tay trái</button><button data-v="both">Hai tay</button></div>
     <label class="chk" title="Tô sáng phím cần bấm và số ngón trên bàn phím"><input type="checkbox" id="pracHint" checked> Gợi ý phím</label>
     <label class="chk"><input type="checkbox" id="pracNames"> Tên nốt</label>
   </div>
@@ -624,7 +624,9 @@ const HINTS = {
   chord: "Phím tắt: 1–4 = chọn đáp án · Space = bật/tắt tự chuyển · Enter / → = hợp âm tiếp · R = nghe hợp âm",
   finger: "Bấm phím trên màn hình, trên đàn hoặc bàn phím máy tính: A S D F G H J K = Đô → Đô, W E T Y U = phím đen · Space = nghe mẫu · R = chơi lại · Enter = bài tiếp",
 };
-HINTS.song = HINTS.finger;
+const HINT_TWO = "Hai tay – bàn phím máy tính: tay phải Q 2 W 3 E R 5 T 6 Y 7 U I = Đô → Đô, tay trái Z S X D C V G B H N J M , = Đô → Đô · Space = nghe mẫu · Enter = bài tiếp";
+const HINT_ONE = HINTS.finger;
+["finger", "song"].forEach(k => Object.defineProperty(HINTS, k, { get: () => state.hand === "both" ? HINT_TWO : HINT_ONE }));
 function view(name) {
   state.phase = name;
   PARTS.forEach(id => { $(id).style.display = VIEWS[name].includes(id) ? "" : "none"; });
@@ -1597,9 +1599,9 @@ const SONG_LH = {
 SONGS.forEach(sg => { sg.lh = SONG_LH[sg.id]; });
 const PRAC = { finger: EXERCISES, song: SONGS };
 const DEMO_LABEL = '▶ Nghe<span class="t"> mẫu</span>';
-state.hand = lsGet("pracHand", "rh") === "lh" ? "lh" : "rh";
+state.hand = ["rh", "lh", "both"].includes(lsGet("pracHand", "rh")) ? lsGet("pracHand", "rh") : "rh";
 state.pieceIdx = Object.assign({ finger: 0, song: 0 }, lsGet("pracPiece", {}));
-const pracKey = (kind, piece, hand) => kind + ":" + piece.id + (kind === "finger" || hand === "lh" ? ":" + hand : "");
+const pracKey = (kind, piece, hand) => kind + ":" + piece.id + (kind === "finger" || hand !== "rh" ? ":" + hand : "");
 const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
 function fillPieceSel(kind) {
   const sel = $("pieceSel"), st = lsGet("pracStars", {});
@@ -1609,54 +1611,80 @@ function fillPieceSel(kind) {
     sel.add(new Option(`${i + 1}. ${pc.name}${n ? "  " + starText(n) : ""}`, i, false, i === state.pieceIdx[kind]));
   });
 }
+// Mỗi bài gồm 1 làn (1 tay) hoặc 2 làn (hai tay: khóa Sol + khóa Fa). Các nốt bắt đầu cùng lúc gom thành 1 "bước":
+// phải bấm đủ các nốt của bước (cùng lúc hoặc lần lượt) mới sang bước tiếp.
 function startPractice(kind = state.phase) {
   stopDemo();
   const list = PRAC[kind], i = Math.min(Math.max(0, +state.pieceIdx[kind] || 0), list.length - 1);
   state.pieceIdx[kind] = i;
-  const piece = list[i], hand = state.hand;
-  const notes = parseMusic(piece[hand]);
-  state.prac = { kind, piece, hand, clef: hand === "lh" ? B : T, notes, playable: notes.filter(n => !n.rest).length,
+  const piece = list[i], hand = state.hand, hands = hand === "both" ? ["rh", "lh"] : [hand];
+  state.prac = { kind, piece, hand, lanes: hands.map(h => ({ hand: h, clef: h === "lh" ? B : T, notes: parseMusic(piece[h]) })),
     idx: 0, errors: 0, start: 0, done: false, demo: -1, flash: false, badKey: null };
-  skipRests(state.prac);
+  layoutPractice();
   fillPieceSel(kind);
   setupSeg("handSeg", state.hand, v => { state.hand = v; lsSet("pracHand", v); startPractice(); });
-  layoutPractice();
+  updateMidiUI();
   renderPractice(true);
 }
-function skipRests(p) { while (p.idx < p.notes.length && p.notes[p.idx].rest) p.idx++; }
-// Tính vị trí x trên một dòng dài (khoảng cách theo trường độ), dấu hóa cần ghi, khung nhìn cố định
 function layoutPractice() {
-  const p = state.prac, key = p.piece.key || 0, keyAcc = keyAccOf(key), b0 = CLEFS[p.clef].bottom;
-  let mem = {}, lastBar = -1, u = 0;
-  p.barXs = [];
-  p.notes.forEach((n, i) => {
-    if (n.bar !== lastBar) {
-      if (i) { p.barXs.push(u + 4); u += 10; }
-      mem = {}; lastBar = n.bar;
-    }
-    if (!n.rest) {
-      const eff = n.d in mem ? mem[n.d] : keyAcc[n.d % 7];
-      n.sign = n.acc !== eff ? n.acc : null;
-      mem[n.d] = n.acc;
-      if (n.sign != null) u += 12;
-    }
-    const w = 26 + 10 * Math.min(n.beats, 2) + (n.dot ? 6 : 0);
-    n.x = u + 14; u += w;
+  const p = state.prac, key = p.piece.key || 0, keyAcc = keyAccOf(key), items = [];
+  p.lanes.forEach((ln, li) => {
+    let t = 0, mem = {}, lastBar = -1;
+    ln.notes.forEach(n => {
+      n.lane = li; n.t = t; t += n.beats;
+      if (n.bar !== lastBar) { mem = {}; lastBar = n.bar; }
+      if (!n.rest) {
+        const eff = n.d in mem ? mem[n.d] : keyAcc[n.d % 7];
+        n.sign = n.acc !== eff ? n.acc : null;
+        mem[n.d] = n.acc;
+      }
+      items.push(n);
+    });
   });
+  // Trục thời gian chung: nốt hai tay bắt đầu cùng lúc thì thẳng hàng
+  const times = [...new Set(items.map(n => n.t))].sort((x, y) => x - y), byT = new Map(times.map(t => [t, []]));
+  items.forEach(n => byT.get(n.t).push(n));
+  let u = 0, lastBar = -1;
+  p.barXs = []; p.events = [];
+  times.forEach((t, k) => {
+    const its = byT.get(t), bar = Math.max(...its.map(n => n.bar));
+    if (bar > lastBar) { if (k) { p.barXs.push(u + 4); u += 10; } lastBar = bar; }
+    if (its.some(n => !n.rest && n.sign != null)) u += 12;
+    const dt = k + 1 < times.length ? times[k + 1] - t : Math.max(...its.map(n => n.beats)), x = u + 14;
+    its.forEach(n => { n.x = x; });
+    u += 26 + 10 * Math.min(dt, 2) + (its.some(n => n.dot) ? 6 : 0);
+    const play = its.filter(n => !n.rest).sort((x1, y1) => x1.lane - y1.lane);
+    if (play.length) p.events.push({ t, x, notes: play });
+  });
+  p.total = p.events.reduce((sum, e) => sum + e.notes.length, 0);
   p.endX = u + 4;
-  p.L = KEY_X + Math.abs(key) * KEY_STEP + 12;   // mép trái vùng nốt chạy (sau khóa + hóa biểu)
-  p.cx = Math.round((p.L + X1) / 2);              // vị trí cố định của nốt đang đánh: giữa khuông
-  let minY = TOP, maxY = BOTTOM;
-  p.notes.forEach(n => {
-    if (n.rest) return;
-    const y = yOf(n.d, p.clef), up = n.d < b0 + 4;
-    n.fy = Math.min(TOP - 22, (up && n.type !== "whole" ? y - 3.5 * S : y) - 14);
-    minY = Math.min(minY, n.fy); maxY = Math.max(maxY, y);
+  p.L = KEY_X + Math.abs(key) * KEY_STEP + 12;       // mép trái vùng nốt (sau khóa + hóa biểu)
+  p.cx = Math.round((p.L + X1) / 2);                  // giữa khuông
+  p.x0 = p.L + 18 - (times.length ? byT.get(times[0])[0].x : 14); // độ dời để nốt đầu nằm ở đầu khuông
+  // Bố trí dọc: 1 làn như cũ; 2 làn thì số ngón tay trái ghi dưới khuông Fa
+  const two = p.lanes.length === 2;
+  p.lanes.forEach((ln, li) => {
+    const b0 = CLEFS[ln.clef].bottom, below = two && li === 1;
+    let minY = TOP, maxY = BOTTOM, maxF = BOTTOM;
+    ln.notes.forEach(n => {
+      if (n.rest) return;
+      const y = yOf(n.d, ln.clef), stemUp = n.type !== "whole" && n.d < b0 + 4, stemDown = n.type !== "whole" && !stemUp;
+      if (below) {
+        n.fy = Math.max(BOTTOM + 24, (stemDown ? y + 3.5 * S : y + 8) + 14);
+        maxF = Math.max(maxF, n.fy); minY = Math.min(minY, stemUp ? y - 3.5 * S : y - 8);
+      } else {
+        n.fy = Math.min(TOP - 22, (stemUp ? y - 3.5 * S : y) - 14);
+        minY = Math.min(minY, n.fy); maxY = Math.max(maxY, y);
+      }
+    });
+    if (below) { ln.top = Math.min(TOP - 12, minY - 6); ln.ly = maxF + 18; }
+    else { ln.top = Math.min(0, minY - 16); ln.ly = Math.max(BOTTOM + 3.5 * S + 10, maxY + 26); }
+    ln.bottom = ln.ly + 10;
+    ln.off = li ? p.lanes[0].bottom + 4 - ln.top : 0;
   });
-  p.top = Math.min(0, minY - 16);
-  p.ly = Math.max(BOTTOM + 3.5 * S + 10, maxY + 26);
-  p.vb = `0 ${p.top} 360 ${p.ly + 10 - p.top}`;
-  const ms = p.notes.filter(n => !n.rest).map(n => n.midi), lo = Math.floor(Math.min(...ms) / 12) * 12;
+  const last = p.lanes[p.lanes.length - 1], top = p.lanes[0].top;
+  p.vb = `0 ${top} 360 ${last.off + last.bottom - top}`;
+  const ms = items.filter(n => !n.rest).map(n => n.midi), lo = Math.floor(Math.min(...ms) / 12) * 12;
   p.range = [lo, Math.max(lo + 24, Math.ceil((Math.max(...ms) + 1) / 12) * 12)];
 }
 const REST_GLYPH = { whole: "𝄻", half: "𝄼", quarter: "𝄽", eighth: "𝄾" };
@@ -1666,67 +1694,82 @@ function drawRest(g, n) {
   glyph(g, REST_GLYPH[n.type], { cx: n.x, top: box[0], bottom: box[1] });
   if (n.dot) el("circle", { cx: n.x + S * 0.9, cy: TOP + 1.5 * S, r: 2.2, class: "f" }, g);
 }
-// Vẽ toàn bộ bài một lần; mỗi lần bấm chỉ đổi màu nốt và trượt dải nốt (có hiệu ứng chuyển động)
+// Vẽ toàn bộ bài một lần; mỗi lần bấm chỉ đổi màu nốt và trượt dải nốt / khung sáng (có hiệu ứng chuyển động)
 function buildPracticeSvg() {
-  const p = state.prac, svg = $("staff"), names = $("pracNames").checked;
+  const p = state.prac, svg = $("staff"), names = $("pracNames").checked, key = p.piece.key || 0;
   svg.innerHTML = "";
   svg.setAttribute("viewBox", p.vb);
-  drawLines(svg, X0, X1, { right: false });
-  el("rect", { x: p.cx - 18, y: TOP - 8, width: 36, height: 4 * S + 16, rx: 8, class: "playhead" }, svg);
-  const clip = el("clipPath", { id: "pracClip" }, el("defs", {}, svg));
-  el("rect", { x: p.L - 4, y: p.top, width: X1 - p.L + 4, height: p.ly + 10 - p.top }, clip);
-  const mov = el("g", { class: "mov" }, el("g", { "clip-path": "url(#pracClip)" }, svg));
-  p.barXs.forEach(x => bar(mov, x));
-  bar(mov, p.endX); bar(mov, p.endX + 3, "", 3); // vạch kết thúc bài
-  p.notes.forEach(n => {
-    const g = n.g = el("g", { class: "n" }, mov);
-    if (n.rest) return drawRest(g, n);
-    const r = drawNote(g, n.x, n.d, p.clef, { type: n.type, acc: n.sign === 1 || n.sign === -1 ? n.sign : 0, natural: n.sign === 0 });
-    if (n.dot) {
-      const onLine = (((n.d - CLEFS[p.clef].bottom) % 2) + 2) % 2 === 0;
-      el("circle", { cx: n.x + S * (n.type === "whole" ? 1.25 : 1.05), cy: r.y - (onLine ? S / 2 : 0), r: 2.2, class: "f" }, g);
-    }
-    if (n.fing) el("text", { x: n.x, y: n.fy, class: "fing" }, g).textContent = n.fing;
-    if (names) el("text", { x: n.x, y: p.ly, class: "lbl" }, g).textContent = nameOf(n.d, n.acc).vi;
+  const defs = el("defs", {}, svg), last = p.lanes[p.lanes.length - 1];
+  if (p.lanes.length === 2) { // vạch nối 2 khuông
+    el("line", { x1: X0, x2: X0, y1: TOP, y2: last.off + BOTTOM, class: "ln" }, svg);
+    el("rect", { x: X0 - 7, y: TOP, width: 3.5, height: last.off + BOTTOM - TOP, class: "f" }, svg);
+  }
+  p.box = el("rect", { x: -18, y: TOP - 8, width: 36, height: last.off + BOTTOM - TOP + 16, rx: 8, class: "playhead mv" }, svg);
+  p.movs = [];
+  p.lanes.forEach((ln, li) => {
+    const g = el("g", { transform: `translate(0 ${ln.off})` }, svg);
+    drawLines(g, X0, X1, { right: false });
+    const cp = el("clipPath", { id: "pracClip" + li }, defs);
+    el("rect", { x: p.L - 4, y: -400, width: X1 - p.L + 4, height: 1000 }, cp);
+    const mov = el("g", { class: "mov" }, el("g", { "clip-path": `url(#pracClip${li})` }, g));
+    p.barXs.forEach(x => bar(mov, x));
+    bar(mov, p.endX); bar(mov, p.endX + 3, "", 3); // vạch kết thúc bài
+    ln.notes.forEach(n => {
+      const ng = n.g = el("g", { class: "n" }, mov);
+      if (n.rest) return drawRest(ng, n);
+      const r = drawNote(ng, n.x, n.d, ln.clef, { type: n.type, acc: n.sign === 1 || n.sign === -1 ? n.sign : 0, natural: n.sign === 0 });
+      if (n.dot) {
+        const onLine = (((n.d - CLEFS[ln.clef].bottom) % 2) + 2) % 2 === 0;
+        el("circle", { cx: n.x + S * (n.type === "whole" ? 1.25 : 1.05), cy: r.y - (onLine ? S / 2 : 0), r: 2.2, class: "f" }, ng);
+      }
+      if (n.fing) el("text", { x: n.x, y: n.fy, class: "fing" }, ng).textContent = n.fing;
+      if (names) el("text", { x: n.x, y: ln.ly, class: "lbl" }, ng).textContent = nameOf(n.d, n.acc).vi;
+    });
+    drawClef(g, ln.clef);
+    if (key) drawKeySig(g, ln.clef, key);
+    p.movs.push(mov);
   });
-  drawClef(svg, p.clef);
-  if (p.piece.key) drawKeySig(svg, p.clef, p.piece.key);
-  p.mov = mov; p.moved = false;
+  p.moved = false;
 }
-const posOf = (p, i) => p.notes.slice(0, i).filter(n => !n.rest).length + 1; // thứ tự nốt (không tính dấu lặng)
 function renderPractice(rebuild) {
   const p = state.prac;
   if (!p || !(state.phase in PRAC)) return;
-  if (rebuild || !p.mov || !p.mov.isConnected) buildPracticeSvg();
-  const N = p.notes.length;
-  let cur = p.demo >= 0 ? p.demo : Math.min(p.idx, N - 1);
-  while (cur > 0 && p.notes[cur].rest) cur--;
-  p.notes.forEach((n, i) => {
+  if (rebuild || !p.movs || !p.movs[0].isConnected) buildPracticeSvg();
+  const E = p.events, ci = p.demo >= 0 ? p.demo : Math.min(p.idx, E.length - 1), ev = E[ci], two = p.lanes.length === 2;
+  E.forEach((e, k) => e.notes.forEach(n => {
     let cls = "";
-    if (p.demo >= 0) cls = i === p.demo ? "hl" : "";
-    else if (p.done || i < p.idx) cls = n.rest ? "" : n.err ? "bad" : "good";
-    else if (i === p.idx) cls = p.flash ? "bad" : "hl";
+    if (p.demo >= 0) cls = k === p.demo ? "hl" : "";
+    else if (p.done || k < p.idx) cls = e.err ? "bad" : "good";
+    else if (k === p.idx) cls = n.hit ? "good" : p.flash ? "bad" : "hl";
     n.g.setAttribute("class", "n " + cls);
-  });
-  // Trượt dải nốt để nốt hiện tại nằm đúng giữa (khung sáng cố định)
-  const dx = p.cx - p.notes[cur].x;
-  if (!p.moved) { p.mov.style.transition = "none"; p.mov.getBoundingClientRect(); }
-  p.mov.style.transform = `translate(${dx}px, 0)`;
-  if (!p.moved) { p.mov.getBoundingClientRect(); p.mov.style.transition = ""; p.moved = true; }
-  // Bàn phím: tô sáng phím cần bấm + số ngón
-  const t = p.notes[cur], show = !p.done && (p.demo >= 0 || $("pracHint").checked);
-  drawKeyboard(show ? [t.midi] : null,
-    { range: p.range, labels: show && t.fing ? { [t.midi]: t.fing } : {}, bad: p.badKey != null ? [p.badKey] : [] });
+  }));
+  // Đầu bài: nốt đứng yên ở đầu khuông, khung sáng chạy theo; tới giữa khuông thì dải nốt mới trượt sang trái;
+  // gần cuối bài: dải nốt dừng, khung sáng chạy tiếp tới nốt cuối
+  const dx = Math.min(p.x0, Math.max(p.cx - ev.x, X1 - 14 - p.endX));
+  const els = [p.box, ...p.movs];
+  if (!p.moved) els.forEach(e => { e.style.transition = "none"; });
+  p.movs.forEach(m => { m.style.transform = `translate(${dx}px, 0)`; });
+  p.box.style.transform = `translate(${ev.x + dx}px, 0)`;
+  if (!p.moved) { p.box.getBoundingClientRect(); els.forEach(e => { e.style.transition = ""; }); p.moved = true; }
+  // Bàn phím: tô sáng các phím cần bấm + số ngón
+  const need = p.done ? [] : ev.notes.filter(n => p.demo >= 0 || (!n.hit && $("pracHint").checked));
+  const labels = {};
+  need.forEach(n => { if (n.fing) labels[n.midi] = n.fing; });
+  drawKeyboard(need.length ? need.map(n => n.midi) : null, { range: p.range, labels, bad: p.badKey != null ? [p.badKey] : [] });
   if (p.done) return;
-  const nm = $("pracNames").checked || $("pracHint").checked ? " · " + nameOf(t.d, t.acc).vi : "";
+  const showName = $("pracNames").checked || $("pracHint").checked;
+  const part = n => (two ? `<span class="small">${n.lane ? "Trái" : "Phải"}</span> ` : "Ngón ") +
+    `<span class="fn">${n.fing || "–"}</span>${showName ? " · " + nameOf(n.d, n.acc).vi : ""}`;
+  const parts = ev.notes.map(part).join('<span class="small"> &nbsp;|&nbsp; </span>');
   $("result").innerHTML = p.demo >= 0
     ? '<div class="big">🎧 Đang phát mẫu…</div><span class="hint">Bấm ⏹ Dừng hoặc bấm phím để tự chơi</span>'
     : !p.start
-      ? `<div class="small"><b>${p.piece.name}</b> · ${p.hand === "lh" ? "Tay trái" : "Tay phải"}</div><span class="hint desc">${p.piece.desc}</span>` +
-        `<span class="hint">Bấm nốt đầu tiên để bắt đầu: ngón <b>${t.fing}</b>${nm}</span>`
-      : `<div class="big">Ngón <span class="fn">${t.fing || "–"}</span>${nm}</div>` +
-        `<div class="small">Nốt ${posOf(p, p.idx)}/${p.playable} · Sai ${p.errors}</div>`;
+      ? `<div class="small"><b>${p.piece.name}</b> · ${HAND_NAMES[p.hand]}</div><span class="hint desc">${p.piece.desc}</span>` +
+        `<span class="hint">Bấm ${two && ev.notes.length > 1 ? "các nốt" : "nốt"} đầu tiên để bắt đầu: ${parts.replace(/class="big"/g, "")}</span>`
+      : `<div class="big"${two ? ' style="font-size:1.4rem"' : ""}>${parts}</div>` +
+        `<div class="small">${two ? "Bước" : "Nốt"} ${p.idx + 1}/${E.length} · Sai ${p.errors}</div>`;
 }
+const HAND_NAMES = { rh: "Tay phải", lh: "Tay trái", both: "Hai tay" };
 function practicePress(m, fromMidi) {
   const p = state.prac;
   if (!p || !(state.phase in PRAC)) return;
@@ -1734,19 +1777,21 @@ function practicePress(m, fromMidi) {
   if (!fromMidi) play(m); // đàn MIDI tự phát tiếng rồi
   if (p.done) return;
   if (!p.start) p.start = performance.now();
-  const n = p.notes[p.idx];
+  const ev = p.events[p.idx], hit = ev.notes.find(n => n.midi === m && !n.hit);
   clearTimeout(p.flashT);
-  if (m === n.midi) {
-    p.flash = false; p.badKey = null; p.idx++; skipRests(p);
-    if (p.idx >= p.notes.length) return finishPractice();
+  if (hit) {
+    hit.hit = true; p.flash = false; p.badKey = null;
+    if (ev.notes.every(n => n.hit)) { p.idx++; if (p.idx >= p.events.length) return finishPractice(); }
+  } else if (ev.notes.some(n => n.midi === m)) {
+    return; // bấm lại phím đã đúng trong bước này: bỏ qua
   } else {
-    p.errors++; n.err = true; p.flash = true; p.badKey = m;
+    p.errors++; ev.err = true; p.flash = true; p.badKey = m;
     p.flashT = setTimeout(() => { p.flash = false; p.badKey = null; if (state.prac === p) renderPractice(); }, 400);
   }
   renderPractice();
 }
 function finishPractice() {
-  const p = state.prac, N = p.playable, ms = performance.now() - p.start;
+  const p = state.prac, N = p.total, ms = performance.now() - p.start;
   p.done = true;
   const stars = p.errors === 0 ? 3 : p.errors <= Math.max(1, Math.round(N * 0.1)) ? 2 : 1;
   const st = lsGet("pracStars", {}), k = pracKey(p.kind, p.piece, p.hand), prev = st[k] || 0;
@@ -1764,27 +1809,24 @@ function finishPractice() {
   const b = showBurst(stars === 3 ? "PERFECT!" : "DONE!", stars === 3 ? "🏆" : "🎉", starText(stars), c[0], c[1]);
   launchConfetti(stars === 3 ? 40 : 24, [c[0], c[1], "#ffffff", "#fde047"], b);
   setTimeout(() => celebrateSound(stars === 3), 350);
-  track("done", p.kind + "-" + p.piece.id + (p.hand === "lh" ? "-trai" : ""));
+  track("done", p.kind + "-" + p.piece.id + (p.hand === "lh" ? "-trai" : p.hand === "both" ? "-2tay" : ""));
 }
-// Nghe mẫu: bài hát phát cả 2 tay (tay đang luyện được tô màu), bài luyện ngón phát tay đang chọn
+// Nghe mẫu: bài hát luôn phát cả 2 tay (tay đang luyện được tô màu); luyện ngón phát tay đang chọn
 function startDemo() {
   const p = state.prac;
   if (!p) return;
   stopDemo();
-  const spb = 60 / (p.piece.bpm || 100), timers = [];
-  const schedule = (notes, main) => {
+  const spb = 60 / (p.piece.bpm || 100), timers = [], audioLanes = p.lanes.map(l => l.notes);
+  if (p.kind === "song" && p.lanes.length === 1) audioLanes.push(parseMusic(p.piece[p.hand === "lh" ? "rh" : "lh"]));
+  let end = 0;
+  audioLanes.forEach(notes => {
     let t = 0;
-    notes.forEach((n, i) => {
-      if (!n.rest) timers.push(setTimeout(() => { play(n.midi); if (main) { p.demo = i; renderPractice(); } }, t * 1000));
-      t += n.beats * spb;
-    });
-    return t;
-  };
-  let end = schedule(p.notes, true);
-  if (p.kind === "song") end = Math.max(end, schedule(parseMusic(p.piece[p.hand === "lh" ? "rh" : "lh"]), false));
-  timers.push(setTimeout(stopDemo, end * 1000 + 200));
-  p.demoT = timers;
-  p.demo = p.notes.findIndex(n => !n.rest);
+    notes.forEach(n => { if (!n.rest) { const m = n.midi; timers.push(setTimeout(() => play(m), t * spb * 1000)); } t += n.beats; });
+    end = Math.max(end, t);
+  });
+  p.events.forEach((e, k) => timers.push(setTimeout(() => { p.demo = k; renderPractice(); }, e.t * spb * 1000)));
+  timers.push(setTimeout(stopDemo, end * spb * 1000 + 200));
+  p.demoT = timers; p.demo = 0;
   renderPractice();
   $("soundBtn").innerHTML = "⏹ Dừng";
 }
@@ -1807,10 +1849,17 @@ function nextPiece() {
 }
 // Bàn phím máy tính: hàng A S D F G H J K = phím trắng Đô → Đô, hàng W E T Y U O P = phím đen
 const PC_KEYS = { a: 0, w: 1, s: 2, e: 3, d: 4, f: 5, t: 6, g: 7, y: 8, h: 9, u: 10, j: 11, k: 12, o: 13, l: 14, p: 15, ";": 16 };
-function pcBase() { // Đô của quãng tám chứa nốt cần bấm
-  const n = state.prac && state.prac.notes[state.prac.idx];
-  return n && !n.rest ? Math.floor(n.midi / 12) * 12 : 60;
+// Đô của quãng tám chứa nốt sắp phải bấm của làn (tay) đó
+function pcBase(lane = 0) {
+  const p = state.prac;
+  if (!p) return 60;
+  const ev = p.events[Math.min(p.idx, p.events.length - 1)];
+  const n = p.lanes[lane].notes.find(x => !x.rest && x.t >= ev.t) || p.lanes[lane].notes.filter(x => !x.rest).pop();
+  return n ? Math.floor(n.midi / 12) * 12 : 60;
 }
+// Hai tay: hàng Q (Q 2 W 3 E R 5 T 6 Y 7 U I) cho tay phải, hàng Z (Z S X D C V G B H N J M ,) cho tay trái
+const PC2_R = { q: 0, 2: 1, w: 2, 3: 3, e: 4, r: 5, 5: 6, t: 7, 6: 8, y: 9, 7: 10, u: 11, i: 12 };
+const PC2_L = { z: 0, s: 1, x: 2, d: 3, c: 4, v: 5, g: 6, b: 7, h: 8, n: 9, j: 10, m: 11, ",": 12 };
 
 // ===================== Kết nối đàn qua MIDI (Web MIDI) =====================
 // Học nốt: bấm đúng phím (mặc định phải đúng quãng tám). Luyện nghe: bấm phím đúng âm.
@@ -1957,8 +2006,13 @@ document.addEventListener("keydown", e => {
   const k = e.key.toLowerCase(), p = state.phase;
   if (p in PRAC) {
     if (e.target.tagName === "SELECT") e.target.blur(); // tránh gõ phím làm đổi bài đang chọn
+    const two = state.prac && state.prac.lanes.length === 2;
     if (k === "enter" || k === "arrowright") { e.preventDefault(); nextPiece(); }
     else if (k === " ") { e.preventDefault(); toggleDemo(); }
+    else if (two && (k in PC2_R || k in PC2_L)) {
+      e.preventDefault();
+      if (!e.repeat) practicePress(k in PC2_R ? pcBase(0) + PC2_R[k] : pcBase(1) + PC2_L[k], false);
+    }
     else if (k === "r") startPractice();
     else if (k in PC_KEYS) { e.preventDefault(); if (!e.repeat) practicePress(pcBase() + PC_KEYS[k], false); }
     return;
