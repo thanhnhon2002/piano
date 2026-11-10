@@ -790,6 +790,13 @@ function updateFlame() {
 }
 
 // Móc thống kê: bản web gắn window.__appTrack để đếm mức độ sử dụng; file gửi riêng không có nên không làm gì
+// Bấm sai: nốt trên khuông nháy đỏ 0,4 giây (không giữ màu đỏ lâu cho đỡ rối mắt)
+function flashWrong(redraw) {
+  clearTimeout(state.flashT);
+  state.flash = true; redraw();
+  const phase = state.phase;
+  state.flashT = setTimeout(() => { state.flash = false; if (state.phase === phase) redraw(); }, 400);
+}
 function track(type, data) { try { if (window.__appTrack) window.__appTrack(type, data); } catch (e) {} }
 function score(right) {
   track("answer");
@@ -985,8 +992,9 @@ function renderNote() {
     const x = xs[j], cur = n > 1 && !state.revealed && j === state.idx;
     let cls = "";
     // Khuông chỉ dùng 2 màu cho đỡ rối mắt: xanh dương = nốt đang đọc, xanh lá = nốt đã xong / đáp án (không tô đỏ)
-    if (cur) cls = "hl";
-    else if (it.done || (n === 1 && state.revealed)) cls = "good";
+    if (cur) cls = state.flash ? "bad" : "hl"; // bấm sai: nháy đỏ 0,4 giây rồi về xanh dương
+    else if (n === 1 && state.revealed) cls = state.flash ? "bad" : "good";
+    else if (it.done) cls = "good";
     else if (state.revealed) cls = "dim";
     const disp = displayOf(it.d, state.clef), y = yOf(disp.d, state.clef);
     if (cur) { // khung sáng quanh nốt đang đọc (giống Luyện ngón)
@@ -1056,7 +1064,7 @@ function newNote() {
     else it.sign = it.acc !== 0 ? it.acc : (base !== 0 ? 0 : null);
     inEffect[it.d] = it.acc;
   });
-  state.idx = 0; state.revealed = false; state.flash = false; clearAuto();
+  state.idx = 0; state.revealed = false; state.flash = false; clearTimeout(state.flashT); clearAuto();
   $("result").innerHTML = (count === 1
     ? '<span class="hint">Nốt này là nốt gì?</span>'
     : `<span class="hint">Đọc lần lượt ${count} nốt từ trái sang phải</span>`) +
@@ -1083,9 +1091,7 @@ function answerNote(g) {
   clearTimeout(state.flashT);
   if (!right) { // sai: ghi nhận lần chọn sai đầu tiên (để chấm điểm), nốt nháy đỏ rồi cho chọn lại
     if (!it.ans) it.ans = g;
-    state.flash = true; renderNote();
-    state.flashT = setTimeout(() => { state.flash = false; if (!state.revealed && state.phase === "note") renderNote(); }, 400);
-    return;
+    return flashWrong(renderNote);
   }
   if (!it.ans) it.ans = g; // đúng ngay lần đầu
   it.done = true;
@@ -1140,6 +1146,7 @@ function revealNote(guess, timeout) {
     setAccSel(0);
   }
   renderNote(); drawKeyboard(noteMidis());
+  if (n === 1 && guess && !noteRight(notes[0])) flashWrong(renderNote);
   // 1 nốt: phát nốt đó. Nhiều nốt: từng nốt đã phát khi chọn, chỉ phát lại cả khuông khi hết giờ
   const pianoRight = n === 1 && guess && guess.midi != null && guess.ok;
   if ($("autoSound").checked && (n === 1 || timeout) && !pianoRight) playNotes();
@@ -1152,6 +1159,7 @@ function revealNote(guess, timeout) {
 const EAR_LO = 28, EAR_HI = 34; // Đô4 → Si4
 const EAR_REPEAT = 3, EAR_GAP = 1;
 function newEar() {
+  clearTimeout(state.flashT); state.flash = false;
   const prev = state.ear; let d;
   do { d = EAR_LO + rnd(EAR_HI - EAR_LO + 1); } while (prev && d === prev.d);
   state.ear = { d, acc: 0, revealed: false }; clearAuto();
@@ -1168,7 +1176,7 @@ function playEar() {
 function renderEar() {
   const svg = $("staff"), e = state.ear; svg.innerHTML = "";
   drawLines(svg); drawClef(svg, T);
-  if (e.revealed) drawNote(svg, NOTE_X, e.d, T, { cls: "good", acc: e.acc });
+  if (e.revealed) drawNote(svg, NOTE_X, e.d, T, { cls: state.flash ? "bad" : "good", acc: e.acc });
   else el("text", { x: NOTE_X, y: TOP + 2 * S + 16, "text-anchor": "middle", "font-size": 46, "font-weight": 800, class: "f hl" }, svg).textContent = "?";
 }
 function revealEar(guess) {
@@ -1186,6 +1194,7 @@ function revealEar(guess) {
     `<div class="small">${n.en}${guess && !right ? ` · bạn chọn ${label(guess)}` : ""}</div>`;
   markAnswers(n.li, guess, right);
   renderEar(); drawKeyboard(target);
+  if (guess && !right) flashWrong(renderEar);
   if (!(guess && guess.midi != null && right)) play(target); // bấm đúng trên đàn thì đàn đã tự kêu
   scheduleAuto(newEar, 2000);
 }
@@ -1250,6 +1259,7 @@ function initChordOpts() {
 }
 
 function newChord() {
+  clearTimeout(state.flashT); state.flash = false;
   clearAuto();
   const pool = chordPool(), prev = state.chord;
   let c;
@@ -1305,7 +1315,7 @@ function drawChordNotes(svg, x, tones, clef, cls) {
 function renderChord() {
   const svg = $("staff"), st = state.chord; svg.innerHTML = "";
   drawLines(svg); drawClef(svg, st.clef);
-  drawChordNotes(svg, NOTE_X, st.tones, st.clef, st.revealed ? "good" : "");
+  drawChordNotes(svg, NOTE_X, st.tones, st.clef, st.revealed ? (state.flash ? "bad" : "good") : "");
   if (st.revealed)
     el("text", { x: NOTE_X, y: 28, "text-anchor": "middle", "font-size": 20, "font-weight": 800, class: "f good" }, svg).textContent = st.c.symbol;
 }
@@ -1336,6 +1346,7 @@ function revealChord(guess, pressed) {
     if (i === right) b.className = "right"; else if (i === guess) b.className = "wrong";
   });
   renderChord(); drawKeyboard(chordMidis());
+  if (guess !== undefined && guess !== right) flashWrong(renderChord);
   if ($("autoSound").checked && !(pressed && guess === right)) playChord();
   scheduleAuto(newChord, 3000);
 }
@@ -1873,8 +1884,9 @@ function renderPractice(rebuild) {
   E.forEach((e, k) => e.notes.forEach(n => {
     let cls = "";
     if (p.demo >= 0) cls = k === p.demo ? "hl" : "";
-    else if (p.done || k < p.idx) cls = "good"; // không tô đỏ trên khuông (chỉ phím bấm sai nháy đỏ trên bàn phím)
-    else if (k === p.idx) cls = n.hit ? "good" : "hl";
+    else if (p.done || k < p.idx) cls = "good"; // nốt đã qua luôn xanh lá (không giữ màu đỏ)
+    else if (k === p.idx) cls = n.hit ? "good" : p.flash ? "bad" : "hl"; // bấm sai: nháy đỏ 0,4 giây
+
     n.g.setAttribute("class", "n " + cls);
   }));
   // Đầu bài: nốt đứng yên ở đầu khuông, khung sáng chạy theo; tới giữa khuông thì dải nốt mới trượt sang trái;
