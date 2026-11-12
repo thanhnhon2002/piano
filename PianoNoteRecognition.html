@@ -1927,9 +1927,12 @@ function practicePress(m, fromMidi) {
   clearTimeout(p.flashT);
   if (hit) {
     hit.hit = true; p.flash = false; p.badKey = null;
+    p.lastHit = { ev, midis: ev.notes.map(n => n.midi), t: performance.now() };
     if (ev.notes.every(n => n.hit)) { p.idx++; if (p.idx >= p.events.length) return finishPractice(); }
   } else if (ev.notes.some(n => n.midi === m)) {
     return; // bấm lại phím đã đúng trong bước này: bỏ qua
+  } else if (p.lastHit && p.lastHit.ev !== ev && p.lastHit.midis.includes(m) && performance.now() - p.lastHit.t < 150) {
+    return; // tín hiệu trùng của phím vừa bấm đúng ở bước trước (ngay sau khi sang bước mới): không tính sai
   } else {
     p.errors++; ev.err = true; p.flash = true; p.badKey = m;
     p.flashT = setTimeout(() => { p.flash = false; p.badKey = null; if (state.prac === p) renderPractice(); }, 400);
@@ -2011,7 +2014,7 @@ const PC2_L = { z: 0, s: 1, x: 2, d: 3, c: 4, v: 5, g: 6, b: 7, h: 8, n: 9, j: 1
 // ===================== Kết nối đàn qua MIDI (Web MIDI) =====================
 // Học nốt: bấm đúng phím (mặc định phải đúng quãng tám). Luyện nghe: bấm phím đúng âm.
 // Hợp âm: bấm đủ các nốt của hợp âm (thể đảo nào cũng được).
-const midi = { access: null, held: new Set(), names: [] };
+const midi = { access: null, held: new Set(), names: [], lastOn: {} };
 const mod12 = x => ((x % 12) + 12) % 12;
 const WHITE_LI = { 0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6 };
 // Đặt tên phím đàn theo nốt nhạc; phím đen dùng ♭ nếu prefer = -1, ngược lại dùng ♯
@@ -2059,7 +2062,14 @@ function bindMidiInputs() {
 }
 function onMidiMessage(e) {
   const [st, note, vel] = e.data, cmd = st & 0xf0;
-  if (cmd === 0x90 && vel > 0) midiNoteOn(note);
+  if (cmd === 0x90 && vel > 0) {
+    // Một số đàn gửi trùng tín hiệu (2 cổng MIDI, chế độ chồng tiếng/layer trên 2 kênh…): bỏ lần bấm
+    // cùng phím lặp lại trong vòng 80 ms vì tay người không thể bấm lại nhanh như vậy
+    const now = performance.now(), last = midi.lastOn[note] || 0;
+    midi.lastOn[note] = now;
+    if (now - last < 80) return;
+    midiNoteOn(note);
+  }
   else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) { midi.held.delete(note); redrawKeyboard(); }
 }
 function midiNoteOn(m) {
