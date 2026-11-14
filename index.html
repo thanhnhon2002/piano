@@ -39,6 +39,8 @@
     display: flex; justify-content: center; padding: 20px 16px 40px;
   }
   .app { width: 100%; max-width: 640px; }
+  body.wide .app { max-width: 1280px; } /* Luyện ngón / Bài hát: khuông + bàn phím dài theo màn hình */
+  body.wide .modes { max-width: 640px; margin-left: auto; margin-right: auto; }
   h1 { font-size: 1.5rem; margin: 0 0 12px; text-align: center; }
   .music { font-family: "Noto Music", "Segoe UI Symbol", serif; }
 
@@ -489,9 +491,16 @@ function drawKeyboard(hlMidis, o = null) {
     while (!isWhite(lo)) lo--;
     while (!isWhite(hi)) hi++;
   }
+  const KW = kbSize === "auto" && o && o.range ? Math.round(580 * wideScale("kbd")) : 580;
+  svg.setAttribute("viewBox", `0 0 ${KW} 80`);
+  const countW = () => { let c = 0; for (let m = lo; m <= hi; m++) if (isWhite(m)) c++; return c; };
+  for (let need = Math.round(countW() * KW / 580), side = 0; countW() < need && (lo > 21 || hi < 108); side ^= 1) {
+    if ((side && hi < 108) || lo <= 21) { hi++; while (!isWhite(hi)) hi++; }
+    else { lo--; while (!isWhite(lo)) lo--; }
+  }
   const whites = [];
   for (let m = lo; m <= hi; m++) if (isWhite(m)) whites.push(m);
-  const w = 580 / whites.length, h = 80, fs = Math.min(8, w * 0.75);
+  const w = KW / whites.length, h = 80, fs = Math.min(8, w * 0.75);
   const xOf = {}; // vị trí mép trái của từng phím trắng
   whites.forEach((m, i) => {
     xOf[m] = i * w;
@@ -516,6 +525,8 @@ function drawKeyboard(hlMidis, o = null) {
   }
 }
 const redrawKeyboard = () => drawKeyboard(state.kbdHl, state.kbdOpts);
+const WIDE_BASE = 600;
+const wideScale = id => Math.max(1, ($(id).getBoundingClientRect().width || WIDE_BASE) / WIDE_BASE);
 
 // ===================== Âm thanh: mẫu piano thật (Salamander Grand Piano) =====================
 // midi -> MP3 base64; được build.py nhúng vào. Nếu trống thì dùng âm tổng hợp.
@@ -667,6 +678,7 @@ function view(name) {
   $("soundBtn").innerHTML = prac ? DEMO_LABEL : "🔊";
   $("nextBtn").textContent = prac ? "Bài tiếp →" : "Tiếp →";
   $("kbd").classList.toggle("play", prac);
+  document.body.classList.toggle("wide", prac);
   $("handSeg").style.display = prac ? "" : "none";
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
   if (ledgerCount() < OTT_FROM) $("optOtt").style.display = "none"; // 8va/8vb chỉ cần khi có từ 4 dòng kẻ phụ
@@ -1818,7 +1830,6 @@ function layoutPractice() {
   p.total = p.events.reduce((sum, e) => sum + e.notes.length, 0);
   p.endX = u + 4;
   p.L = KEY_X + Math.abs(key) * KEY_STEP + 12;       // mép trái vùng nốt (sau khóa + hóa biểu)
-  p.cx = Math.round((p.L + X1) / 2);                  // giữa khuông
   p.x0 = p.L + 18 - (times.length ? byT.get(times[0])[0].x : 14); // độ dời để nốt đầu nằm ở đầu khuông
   // Bố trí dọc: 1 làn như cũ; 2 làn thì số ngón tay trái ghi dưới khuông Fa
   const two = p.lanes.length === 2;
@@ -1842,10 +1853,29 @@ function layoutPractice() {
     ln.off = li ? p.lanes[0].bottom + 4 - ln.top : 0;
   });
   const last = p.lanes[p.lanes.length - 1], top = p.lanes[0].top;
-  p.vb = `0 ${top} 360 ${last.off + last.bottom - top}`;
+  p.vbTop = top; p.vbH = last.off + last.bottom - top;
+  setPracWidth(p);
   const ms = items.filter(n => !n.rest).map(n => n.midi), lo = Math.floor(Math.min(...ms) / 12) * 12;
   p.range = [lo, Math.max(lo + 24, Math.ceil((Math.max(...ms) + 1) / 12) * 12)];
 }
+// Bề ngang khuông luyện tập (đơn vị SVG): 360 như các tab khác, màn hình rộng thì dài thêm
+function setPracWidth(p) {
+  p.W = Math.round(360 * wideScale("staff"));
+  p.X1 = p.W - 16;
+  p.cx = Math.round((p.L + p.X1) / 2);                // giữa khuông
+  p.vb = `0 ${p.vbTop} ${p.W} ${p.vbH}`;
+}
+let pracResizeT = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(pracResizeT);
+  pracResizeT = setTimeout(() => {
+    const p = state.prac;
+    if (!p || !(state.phase in PRAC)) return;
+    const W = p.W;
+    setPracWidth(p);
+    if (p.W !== W) renderPractice(true); else redrawKeyboard();
+  }, 150);
+});
 const REST_GLYPH = { whole: "𝄻", half: "𝄼", quarter: "𝄽", eighth: "𝄾", sixteenth: "𝄿" };
 function drawRest(g, n) {
   const box = { whole: [TOP + S, TOP + 1.5 * S], half: [TOP + 1.5 * S, TOP + 2 * S],
@@ -1867,9 +1897,9 @@ function buildPracticeSvg() {
   p.movs = [];
   p.lanes.forEach((ln, li) => {
     const g = el("g", { transform: `translate(0 ${ln.off})` }, svg);
-    drawLines(g, X0, X1, { right: false });
+    drawLines(g, X0, p.X1, { right: false });
     const cp = el("clipPath", { id: "pracClip" + li }, defs);
-    el("rect", { x: p.L - 4, y: -400, width: X1 - p.L + 4, height: 1000 }, cp);
+    el("rect", { x: p.L - 4, y: -400, width: p.X1 - p.L + 4, height: 1000 }, cp);
     const mov = el("g", { class: "mov" }, el("g", { "clip-path": `url(#pracClip${li})` }, g));
     p.barXs.forEach(x => bar(mov, x));
     bar(mov, p.endX); bar(mov, p.endX + 3, "", 3); // vạch kết thúc bài
@@ -1917,7 +1947,7 @@ function renderPractice(rebuild) {
   }));
   // Đầu bài: nốt đứng yên ở đầu khuông, khung sáng chạy theo; tới giữa khuông thì dải nốt mới trượt sang trái;
   // gần cuối bài: dải nốt dừng, khung sáng chạy tiếp tới nốt cuối
-  const dx = Math.min(p.x0, Math.max(p.cx - ev.x, X1 - 14 - p.endX));
+  const dx = Math.min(p.x0, Math.max(p.cx - ev.x, p.X1 - 14 - p.endX));
   const els = [p.box, ...p.movs];
   if (!p.moved) els.forEach(e => { e.style.transition = "none"; });
   p.movs.forEach(m => { m.style.transform = `translate(${dx}px, 0)`; });
