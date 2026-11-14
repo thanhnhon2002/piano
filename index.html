@@ -525,8 +525,10 @@ function drawKeyboard(hlMidis, o = null) {
   }
 }
 const redrawKeyboard = () => drawKeyboard(state.kbdHl, state.kbdOpts);
+// Màn hình rộng: khuông / bàn phím Luyện ngón – Bài hát dài theo bề ngang. Chỉ bật ở bản local (src/local.js đặt = true)
+let WIDE_PRAC = false;
 const WIDE_BASE = 600;
-const wideScale = id => Math.max(1, ($(id).getBoundingClientRect().width || WIDE_BASE) / WIDE_BASE);
+const wideScale = id => WIDE_PRAC ? Math.max(1, ($(id).getBoundingClientRect().width || WIDE_BASE) / WIDE_BASE) : 1;
 
 // ===================== Âm thanh: mẫu piano thật (Salamander Grand Piano) =====================
 // midi -> MP3 base64; được build.py nhúng vào. Nếu trống thì dùng âm tổng hợp.
@@ -678,7 +680,7 @@ function view(name) {
   $("soundBtn").innerHTML = prac ? DEMO_LABEL : "🔊";
   $("nextBtn").textContent = prac ? "Bài tiếp →" : "Tiếp →";
   $("kbd").classList.toggle("play", prac);
-  document.body.classList.toggle("wide", prac);
+  document.body.classList.toggle("wide", prac && WIDE_PRAC);
   $("handSeg").style.display = prac ? "" : "none";
   ALL_OPTS.forEach(id => { $(id).style.display = OPTS[name].includes(id) ? "" : "none"; });
   if (ledgerCount() < OTT_FROM) $("optOtt").style.display = "none"; // 8va/8vb chỉ cần khi có từ 4 dòng kẻ phụ

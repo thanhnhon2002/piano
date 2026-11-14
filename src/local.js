@@ -2,6 +2,7 @@
 // Chỉ có trong PianoLocal.html (build.py chèn file này vào), không có trong bản web / bản gửi người khác.
 // Nguồn bài: (1) file đặt trong thư mục my-songs/ rồi chạy build.py; (2) nút "📂 Thêm bài" (lưu trong trình duyệt).
 const MY_FILES = /*__MY_FILES__*/[];
+WIDE_PRAC = true; // khuông nhạc + bàn phím dài theo màn hình rộng (chỉ bản local)
 // Bài có sẵn được giữ lại trong bản local (các bài khác ẩn đi, bản web vẫn đủ). Để trống [] = giữ tất cả.
 const KEEP_SONGS = ["birthday"];
 if (KEEP_SONGS.length) for (let i = SONGS.length - 1; i >= 0; i--) if (!KEEP_SONGS.includes(SONGS[i].id)) SONGS.splice(i, 1);
