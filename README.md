@@ -55,11 +55,27 @@ Bản web dùng [GoatCounter](https://nhonpiano.goatcounter.com) (không cookie,
 
 File `PianoNoteRecognition.html` gửi riêng không chứa phần thống kê.
 
+## Bản dùng riêng trên máy (Bài của tôi)
+
+`python build.py` tạo thêm file `PianoLocal.html` – bản chỉ dùng trên máy mình, **không đưa lên GitHub**
+(đã có trong `.gitignore`). Bản này có thêm mục **🎼 Bài của tôi** trong tab Bài hát:
+
+- Bấm **📂 Thêm bài** (hoặc kéo thả file vào trang) để nhập bài từ file **MusicXML** (`.musicxml`, `.mxl`)
+  hoặc **MIDI** (`.mid`). Bài được lưu trong trình duyệt, xóa bằng nút **🗑 Xóa bài**.
+- Hoặc chép file vào thư mục `my-songs/` (cũng không đưa lên GitHub) rồi chạy lại `python build.py`:
+  bài được nhúng thẳng vào `PianoLocal.html`, không mất khi xóa dữ liệu trình duyệt.
+- MusicXML: bè piano 2 khuông → khuông trên tay phải, khuông dưới tay trái; đọc được hợp âm, dấu nối, dấu lặng,
+  số ngón, hóa biểu, tempo. MIDI: track cao hơn là tay phải (chỉ 1 track thì chia ở Đô giữa), nốt được làm tròn
+  về móc kép / chùm ba, không có số ngón.
+
 ## Cấu trúc thư mục
 
 ```
 PianoNoteRecognition.html        ← file hoàn chỉnh (được tạo bởi build.py), dùng để chia sẻ
 index.html                       ← bản giống hệt, là trang chính của GitHub Pages
+PianoLocal.html                  ← bản dùng riêng trên máy, có "Bài của tôi" (không đưa lên GitHub)
+my-songs/                        ← file MusicXML / MIDI của riêng mình (không đưa lên GitHub)
+src/local.js                     ← mã nhập bài từ file, chỉ gắn vào PianoLocal.html
 src/PianoNoteRecognition.src.html← mã nguồn (sửa ở đây)
 assets/NotoMusic-music.woff2     ← font ký hiệu âm nhạc
 assets/piano/*.mp3               ← mẫu âm thanh piano (3 giây/mẫu)

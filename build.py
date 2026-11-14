@@ -4,6 +4,8 @@ Dùng:  python build.py
 Kết quả:
   PianoNoteRecognition.html  – file duy nhất để gửi cho người khác / đưa lên GitHub Pages
   index.html                 – bản giống hệt, dùng làm trang chính của GitHub Pages
+  PianoLocal.html            – bản dùng riêng trên máy (không đưa lên GitHub): có thêm "Bài của tôi",
+                               nhập bài từ file MusicXML / MIDI; file trong thư mục my-songs/ được nhúng sẵn
 """
 import base64
 import json
@@ -16,6 +18,10 @@ FONT = ROOT / "assets" / "NotoMusic-music.woff2"
 PIANO_DIR = ROOT / "assets" / "piano"
 OUT = ROOT / "PianoNoteRecognition.html"
 INDEX = ROOT / "index.html"
+LOCAL = ROOT / "PianoLocal.html"
+LOCAL_JS = ROOT / "src" / "local.js"
+MY_SONGS = ROOT / "my-songs"
+SCORE_EXT = {".mid", ".midi", ".mxl", ".musicxml", ".xml"}
 
 # Thống kê lượt truy cập (GoatCounter) – CHỈ gắn vào bản web (index.html),
 # không gắn vào file PianoNoteRecognition.html dùng để gửi riêng.
@@ -134,6 +140,15 @@ def main():
     if "__NOTO_MUSIC_WOFF2__" in html:
         raise SystemExit("Chưa nhúng được font")
 
+    if html.count("/*__LOCAL_CODE__*/") != 1:
+        raise SystemExit("Không tìm thấy chỗ gắn mã bản local")
+    # Bản local: gắn thêm src/local.js + nhúng các file bài trong my-songs/
+    files = sorted(f for f in MY_SONGS.glob("*") if f.suffix.lower() in SCORE_EXT) if MY_SONGS.is_dir() else []
+    my = json.dumps([{"name": f.name, "data": b64(f)} for f in files], ensure_ascii=False)
+    local_js = LOCAL_JS.read_text(encoding="utf-8").replace("/*__MY_FILES__*/[]", my)
+    LOCAL.write_text(html.replace("/*__LOCAL_CODE__*/", local_js), encoding="utf-8", newline="\n")
+    print(f"{LOCAL.name}: {len(files)} bài trong my-songs/")
+    html = html.replace("/*__LOCAL_CODE__*/", "")
     OUT.write_text(html, encoding="utf-8", newline="\n")
     # Bản web: app nằm ngay ở link gốc của GitHub Pages (link ngắn, không chuyển hướng)
     if html.count("</body>") != 1:

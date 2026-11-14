@@ -429,6 +429,7 @@ function drawNote(svg, x, d, clef, o = {}) {
   el("ellipse", { cx: x, cy: y, rx: S * 0.68, ry: S * 0.47, transform: `rotate(-20 ${x} ${y})`, class: "f " + cls }, svg);
   if (type === "half")
     el("ellipse", { cx: x, cy: y, rx: S * 0.5, ry: S * 0.2, transform: `rotate(-20 ${x} ${y})`, class: "hole" }, svg);
+  if (o.noStem) return { x, y, up };
   const sx = up ? x + S * 0.62 : x - S * 0.62;
   const tip = up ? y - 3.5 * S : y + 3.5 * S;
   el("line", { x1: sx, x2: sx, y1: y + (up ? -2 : 2), y2: tip, class: "s " + cls }, svg);
@@ -1508,13 +1509,13 @@ function revealSym(guess) {
 // Chơi kiểu "chờ": nốt hiện tại tô xanh, bấm đúng phím mới sang nốt kế tiếp.
 // Cách ghi nốt: "E4/q:3" = Mi4, nốt đen, ngón 3. Trường độ: w tròn, h trắng, q đen, e móc đơn; thêm "." = có chấm.
 // "F#4" thăng, "Bb4" giáng; "|" = vạch nhịp. Ngón: 1 = ngón cái … 5 = ngón út.
-const DUR = { w: [4, "whole"], h: [2, "half"], q: [1, "quarter"], e: [0.5, "eighth"] };
+const DUR = { w: [4, "whole"], h: [2, "half"], q: [1, "quarter"], e: [0.5, "eighth"], s: [0.25, "sixteenth"] };
 function parseMusic(src) {
   const out = [];
   src.trim().split("|").forEach((barSrc, bar) => barSrc.trim().split(/\s+/).filter(Boolean).forEach(tok => {
-    const r = tok.match(/^R\/([whqe])(\.?)$/); // dấu lặng
+    const r = tok.match(/^R\/([whqes])(\.?)$/); // dấu lặng
     if (r) { const [beats, type] = DUR[r[1]]; out.push({ rest: true, type, dot: !!r[2], beats: beats * (r[2] ? 1.5 : 1), bar }); return; }
-    const m = tok.match(/^([A-G])([#b]?)(\d)\/([whqe])(\.?)(?::(\d))?$/);
+    const m = tok.match(/^([A-G])([#b]?)(\d)\/([whqes])(\.?)(?::(\d))?$/);
     if (!m) throw new Error("Nốt ghi sai: " + tok);
     const d = +m[3] * 7 + LETTERS.indexOf(m[1]), acc = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
     const [beats, type] = DUR[m[4]];
@@ -1743,6 +1744,12 @@ SONGS.forEach(sg => { sg.lh = SONG_LH[sg.id]; });
   SONGS.sort((x, y) => ORDER.indexOf(x.id) - ORDER.indexOf(y.id));
 }
 const PRAC = { finger: EXERCISES, song: SONGS };
+const pieceNotes = src => Array.isArray(src) ? src.map(n => ({ ...n })) : parseMusic(src);
+// Thời điểm bắt đầu (tính bằng phách) của từng nốt; nốt có chord = true vang cùng lúc với nốt trước
+function noteTimes(notes) {
+  let t = 0, pt = 0;
+  return notes.map(n => { if (!n.chord) { pt = t; t += n.beats; } return pt; });
+}
 const DEMO_LABEL = '▶ Nghe<span class="t"> mẫu</span>';
 state.hand = ["rh", "lh", "both"].includes(lsGet("pracHand", "rh")) ? lsGet("pracHand", "rh") : "rh";
 state.pieceIdx = Object.assign({ finger: 0, song: 0 }, lsGet("pracPiece", {}));
@@ -1751,10 +1758,14 @@ const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
 function fillPieceSel(kind) {
   const sel = $("pieceSel"), st = lsGet("pracStars", {});
   sel.innerHTML = "";
+  let grp = null;
   PRAC[kind].forEach((pc, i) => {
     const n = st[pracKey(kind, pc, state.hand)] || 0;
-    sel.add(new Option(`${i + 1}. ${pc.name}${n ? "  " + starText(n) : ""}`, i, false, i === state.pieceIdx[kind]));
+    if (pc.user && !grp) { grp = document.createElement("optgroup"); grp.label = "🎼 Bài của tôi"; sel.appendChild(grp); }
+    const o = new Option(`${grp ? "" : i + 1 + ". "}${pc.name}${n ? "  " + starText(n) : ""}`, i, false, i === state.pieceIdx[kind]);
+    (grp || sel).appendChild(o);
   });
+  sel.value = String(state.pieceIdx[kind]);
 }
 // Mỗi bài gồm 1 làn (1 tay) hoặc 2 làn (hai tay: khóa Sol + khóa Fa). Các nốt bắt đầu cùng lúc gom thành 1 "bước":
 // phải bấm đủ các nốt của bước (cùng lúc hoặc lần lượt) mới sang bước tiếp.
@@ -1762,8 +1773,10 @@ function startPractice(kind = state.phase) {
   stopDemo();
   const list = PRAC[kind], i = Math.min(Math.max(0, +state.pieceIdx[kind] || 0), list.length - 1);
   state.pieceIdx[kind] = i;
-  const piece = list[i], hand = state.hand, hands = hand === "both" ? ["rh", "lh"] : [hand];
-  state.prac = { kind, piece, hand, lanes: hands.map(h => ({ hand: h, clef: h === "lh" ? B : T, notes: parseMusic(piece[h]) })),
+  const piece = list[i], hand = state.hand;
+  let hands = (hand === "both" ? ["rh", "lh"] : [hand]).filter(h => piece[h] && piece[h].length);
+  if (!hands.length) hands = [piece.rh && piece.rh.length ? "rh" : "lh"]; // bài chỉ có một tay
+  state.prac = { kind, piece, hand, lanes: hands.map(h => ({ hand: h, clef: h === "lh" ? B : T, notes: pieceNotes(piece[h]) })),
     idx: 0, errors: 0, start: 0, done: false, demo: -1, flash: false, badKey: null };
   layoutPractice();
   fillPieceSel(kind);
@@ -1774,9 +1787,10 @@ function startPractice(kind = state.phase) {
 function layoutPractice() {
   const p = state.prac, key = p.piece.key || 0, keyAcc = keyAccOf(key), items = [];
   p.lanes.forEach((ln, li) => {
-    let t = 0, mem = {}, lastBar = -1;
-    ln.notes.forEach(n => {
-      n.lane = li; n.t = t; t += n.beats;
+    let mem = {}, lastBar = -1;
+    const ts = noteTimes(ln.notes);
+    ln.notes.forEach((n, k) => {
+      n.lane = li; n.t = ts[k];
       if (n.bar !== lastBar) { mem = {}; lastBar = n.bar; }
       if (!n.rest) {
         const eff = n.d in mem ? mem[n.d] : keyAcc[n.d % 7];
@@ -1832,10 +1846,10 @@ function layoutPractice() {
   const ms = items.filter(n => !n.rest).map(n => n.midi), lo = Math.floor(Math.min(...ms) / 12) * 12;
   p.range = [lo, Math.max(lo + 24, Math.ceil((Math.max(...ms) + 1) / 12) * 12)];
 }
-const REST_GLYPH = { whole: "𝄻", half: "𝄼", quarter: "𝄽", eighth: "𝄾" };
+const REST_GLYPH = { whole: "𝄻", half: "𝄼", quarter: "𝄽", eighth: "𝄾", sixteenth: "𝄿" };
 function drawRest(g, n) {
   const box = { whole: [TOP + S, TOP + 1.5 * S], half: [TOP + 1.5 * S, TOP + 2 * S],
-    quarter: [TOP + 0.5 * S, TOP + 3.5 * S], eighth: [TOP + 1.3 * S, TOP + 3 * S] }[n.type];
+    quarter: [TOP + 0.5 * S, TOP + 3.5 * S], eighth: [TOP + 1.3 * S, TOP + 3 * S], sixteenth: [TOP + 1.3 * S, TOP + 3.8 * S] }[n.type];
   glyph(g, REST_GLYPH[n.type], { cx: n.x, top: box[0], bottom: box[1] });
   if (n.dot) el("circle", { cx: n.x + S * 0.9, cy: TOP + 1.5 * S, r: 2.2, class: "f" }, g);
 }
@@ -1859,10 +1873,22 @@ function buildPracticeSvg() {
     const mov = el("g", { class: "mov" }, el("g", { "clip-path": `url(#pracClip${li})` }, g));
     p.barXs.forEach(x => bar(mov, x));
     bar(mov, p.endX); bar(mov, p.endX + 3, "", 3); // vạch kết thúc bài
+    const chords = new Map(); // t -> các nốt cùng lúc trong tay này
+    ln.notes.forEach(n => { if (!n.rest) { if (!chords.has(n.t)) chords.set(n.t, []); chords.get(n.t).push(n); } });
     ln.notes.forEach(n => {
       const ng = n.g = el("g", { class: "n" }, mov);
       if (n.rest) return drawRest(ng, n);
-      const r = drawNote(ng, n.x, n.d, ln.clef, { type: n.type, acc: n.sign === 1 || n.sign === -1 ? n.sign : 0, natural: n.sign === 0 });
+      const grp = chords.get(n.t), multi = grp.length > 1, b0 = CLEFS[ln.clef].bottom;
+      const up = multi ? grp.reduce((a, x) => a + x.d, 0) / grp.length < b0 + 4 : undefined;
+      const r = drawNote(ng, n.x, n.d, ln.clef, { type: n.type, acc: n.sign === 1 || n.sign === -1 ? n.sign : 0, natural: n.sign === 0,
+        up, noStem: multi });
+      if (multi && n === grp[0] && n.type !== "whole") { // đuôi chung từ nốt xa nhất tới quá nốt gần đầu đuôi nhất
+        const ys = grp.map(x => yOf(x.d, ln.clef)), lo = Math.max(...ys), hi = Math.min(...ys);
+        const sx = up ? n.x + S * 0.62 : n.x - S * 0.62, y1 = up ? lo - 2 : hi + 2, tip = up ? hi - 3.5 * S : lo + 3.5 * S;
+        el("line", { x1: sx, x2: sx, y1, y2: tip, class: "s" }, ng);
+        const flags = n.type === "eighth" ? 1 : n.type === "sixteenth" ? 2 : 0;
+        for (let i = 0; i < flags; i++) flag(ng, sx, tip + (up ? 1 : -1) * i * S * 0.8, up, "");
+      }
       if (n.dot) {
         const onLine = (((n.d - CLEFS[ln.clef].bottom) % 2) + 2) % 2 === 0;
         el("circle", { cx: n.x + S * (n.type === "whole" ? 1.25 : 1.05), cy: r.y - (onLine ? S / 2 : 0), r: 2.2, class: "f" }, ng);
@@ -1904,8 +1930,8 @@ function renderPractice(rebuild) {
   drawKeyboard(need.length ? need.map(n => n.midi) : null, { range: p.range, labels, bad: p.badKey != null ? [p.badKey] : [] });
   if (p.done) return;
   const showName = $("pracNames").checked || $("pracHint").checked;
-  const part = n => (two ? `<span class="small">${n.lane ? "Trái" : "Phải"}</span> ` : "Ngón ") +
-    `<span class="fn">${n.fing || "–"}</span>${showName ? " · " + nameOf(n.d, n.acc).vi : ""}`;
+  const part = n => (two ? `<span class="small">${n.lane ? "Trái" : "Phải"}</span> ` : n.fing ? "Ngón " : "") +
+    (n.fing ? `<span class="fn">${n.fing}</span>${showName ? " · " + nameOf(n.d, n.acc).vi : ""}` : nameOf(n.d, n.acc).vi);
   const parts = ev.notes.map(part).join('<span class="small"> &nbsp;|&nbsp; </span>');
   $("result").innerHTML = p.demo >= 0
     ? '<div class="big">🎧 Đang phát mẫu…</div><span class="hint">Bấm ⏹ Dừng hoặc bấm phím để tự chơi</span>'
@@ -1967,12 +1993,15 @@ function startDemo() {
   if (!p) return;
   stopDemo();
   const spb = 60 / (p.piece.bpm || 100), timers = [], audioLanes = p.lanes.map(l => l.notes);
-  if (p.kind === "song" && p.lanes.length === 1) audioLanes.push(parseMusic(p.piece[p.hand === "lh" ? "rh" : "lh"]));
+  const other = p.piece[p.lanes[0].hand === "lh" ? "rh" : "lh"];
+  if (p.kind === "song" && p.lanes.length === 1 && other && other.length) audioLanes.push(pieceNotes(other));
   let end = 0;
   audioLanes.forEach(notes => {
-    let t = 0;
-    notes.forEach(n => { if (!n.rest) { const m = n.midi; timers.push(setTimeout(() => play(m), t * spb * 1000)); } t += n.beats; });
-    end = Math.max(end, t);
+    const ts = noteTimes(notes);
+    notes.forEach((n, k) => {
+      if (!n.rest) { const m = n.midi; timers.push(setTimeout(() => play(m), ts[k] * spb * 1000)); }
+      end = Math.max(end, ts[k] + n.beats);
+    });
   });
   p.events.forEach((e, k) => timers.push(setTimeout(() => { p.demo = k; renderPractice(); }, e.t * spb * 1000)));
   timers.push(setTimeout(stopDemo, end * spb * 1000 + 200));
@@ -2204,6 +2233,7 @@ function rerender() {
   else if (state.phase === "chord") renderChord();
   else if (state.phase in PRAC) renderPractice(true);
 }
+
 
 setMode("treble"); // luôn mở app ở chế độ Khóa Sol
 $("midiBtn").onclick = () => connectMidi(false);
